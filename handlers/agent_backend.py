@@ -11,79 +11,268 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 
-from mongo import agents, agent_withdrawals
+from mongo import agents, agent_withdrawals, user
 from bot import get_admin_ids
+
+
+# ===== i18n Support =====
+I18N = {
+    'zh': {
+        'agent_panel_title': '🤖 代理后台',
+        'financial_overview': '📊 财务概况',
+        'markup_setting': '差价设置',
+        'available_balance': '可提现余额',
+        'frozen_balance': '冻结中',
+        'total_paid': '已提现总额',
+        'contact_info': '🔗 联系方式',
+        'customer_service': '客服',
+        'official_channel': '官方频道',
+        'restock_group': '补货通知群',
+        'tutorial_link': '教程链接',
+        'notify_channel_id': '通知频道ID',
+        'not_set': '未设置',
+        'panel_tip': '提示: 这些设置仅影响您的代理机器人，不会影响主机器人。',
+        'set_markup': '💰 设置差价',
+        'initiate_withdrawal': '💸 发起提现',
+        'set_customer_service': '📞 设置客服',
+        'set_official_channel': '📢 设置官方频道',
+        'set_restock_group': '📣 设置补货通知群',
+        'set_tutorial_link': '📖 设置教程链接',
+        'set_notify_channel': '🔔 设置通知频道ID',
+        'manage_link_buttons': '🔘 管理链接按钮',
+        'send_test_notification': '📡 发送测试通知',
+        'close': '❌ 关闭',
+        'not_agent_bot': '❌ 此命令仅在代理机器人中可用。',
+        'agent_not_found': '❌ 未找到代理信息。',
+        'not_owner': '❌ 此命令仅限代理拥有者使用。',
+        'error_loading_panel': '❌ 加载代理后台时出错',
+        'bind_as_owner': '🔐 绑定为拥有者',
+        'cancel': '❌ 取消',
+        'unbound_title': '🤖 代理后台 - 未绑定',
+        'unbound_message': '此代理机器人尚未绑定拥有者。\n\n作为代理运营者，您需要先绑定为拥有者才能访问代理后台。\n\n点击下方按钮绑定您的账号为此代理的拥有者。',
+        'rebind_title': '🤖 代理后台 - 需要重新绑定',
+        'rebind_message': '此代理机器人当前绑定的是管理员账号。\n\n作为实际的代理运营者，您可以一次性地将拥有者身份转移到您的账号。\n\n⚠️ <b>注意：</b>此操作只能执行一次，请确认您是该代理的实际运营者。',
+        'test_notif_success': '✅ 测试通知发送成功！\n\n通知已发送到您配置的频道。',
+        'test_notif_no_channel': '❌ 未设置通知频道\n\n请先设置通知频道ID。',
+        'test_notif_error': '❌ 发送失败\n\n错误信息: {error}\n\n请检查:\n1. 频道ID格式是否正确 (例如: -1001234567890)\n2. 机器人是否已被添加到频道\n3. 机器人是否有发送消息的权限',
+    },
+    'en': {
+        'agent_panel_title': '🤖 Agent Backend',
+        'financial_overview': '📊 Financial Overview',
+        'markup_setting': 'Markup Setting',
+        'available_balance': 'Available Balance',
+        'frozen_balance': 'Frozen',
+        'total_paid': 'Total Withdrawn',
+        'contact_info': '🔗 Contact Information',
+        'customer_service': 'Customer Service',
+        'official_channel': 'Official Channel',
+        'restock_group': 'Restock Group',
+        'tutorial_link': 'Tutorial Link',
+        'notify_channel_id': 'Notify Channel ID',
+        'not_set': 'Not Set',
+        'panel_tip': 'Tip: These settings only affect your agent bot, not the main bot.',
+        'set_markup': '💰 Set Markup',
+        'initiate_withdrawal': '💸 Withdraw',
+        'set_customer_service': '📞 Set Customer Service',
+        'set_official_channel': '📢 Set Official Channel',
+        'set_restock_group': '📣 Set Restock Group',
+        'set_tutorial_link': '📖 Set Tutorial Link',
+        'set_notify_channel': '🔔 Set Notify Channel ID',
+        'manage_link_buttons': '🔘 Manage Link Buttons',
+        'send_test_notification': '📡 Send Test Notification',
+        'close': '❌ Close',
+        'not_agent_bot': '❌ This command is only available in agent bots.',
+        'agent_not_found': '❌ Agent information not found.',
+        'not_owner': '❌ This command is only available to the agent owner.',
+        'error_loading_panel': '❌ Error loading agent panel',
+        'bind_as_owner': '🔐 Bind as Owner',
+        'cancel': '❌ Cancel',
+        'unbound_title': '🤖 Agent Backend - Unbound',
+        'unbound_message': 'This agent bot has no owner bound yet.\n\nAs the agent operator, you need to bind yourself as the owner to access the agent backend.\n\nClick the button below to bind your account as the owner.',
+        'rebind_title': '🤖 Agent Backend - Rebind Required',
+        'rebind_message': 'This agent bot is currently bound to an admin account.\n\nAs the actual agent operator, you can transfer ownership to your account once.\n\n⚠️ <b>Note:</b> This operation can only be done once. Please confirm you are the actual operator.',
+        'test_notif_success': '✅ Test notification sent successfully!\n\nThe notification was sent to your configured channel.',
+        'test_notif_no_channel': '❌ Notify channel not set\n\nPlease set the notify channel ID first.',
+        'test_notif_error': '❌ Send failed\n\nError: {error}\n\nPlease check:\n1. Channel ID format is correct (e.g., -1001234567890)\n2. Bot has been added to the channel\n3. Bot has permission to send messages',
+    }
+}
+
+
+def get_user_language(update: Update, context: CallbackContext) -> str:
+    """Get user's preferred language (zh or en).
+    
+    Priority:
+    1. user.lang field from database
+    2. Telegram language_code
+    3. Default to 'zh'
+    """
+    user_id = update.effective_user.id
+    
+    # Check database first
+    try:
+        user_doc = user.find_one({'user_id': user_id})
+        if user_doc and user_doc.get('lang'):
+            lang = user_doc['lang']
+            if lang in ['zh', 'en']:
+                return lang
+    except Exception as e:
+        logging.debug(f"Could not fetch user language from DB: {e}")
+    
+    # Check Telegram language
+    if update.effective_user.language_code:
+        lang_code = update.effective_user.language_code.lower()
+        if lang_code.startswith('zh'):
+            return 'zh'
+        elif lang_code.startswith('en'):
+            return 'en'
+    
+    # Default to Chinese
+    return 'zh'
+
+
+def t(lang: str, key: str, **kwargs) -> str:
+    """Translate a key to the specified language.
+    
+    Args:
+        lang: Language code ('zh' or 'en')
+        key: Translation key
+        **kwargs: Format parameters for the translation string
+    
+    Returns:
+        Translated string
+    """
+    if lang not in I18N:
+        lang = 'zh'
+    
+    translation = I18N[lang].get(key, I18N['zh'].get(key, key))
+    
+    if kwargs:
+        try:
+            return translation.format(**kwargs)
+        except Exception as e:
+            logging.error(f"Translation format error for key '{key}': {e}")
+            return translation
+    
+    return translation
+
+
+def send_agent_notification(context: CallbackContext, text: str, parse_mode: str = None) -> dict:
+    """Send a notification to the agent's configured notify channel.
+    
+    Args:
+        context: CallbackContext with agent_id in bot_data
+        text: Message text to send
+        parse_mode: Optional parse mode ('HTML', 'Markdown', etc.)
+    
+    Returns:
+        Dict with 'success': bool and 'error': str (if failed)
+    """
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        return {'success': False, 'error': 'Not an agent bot'}
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            return {'success': False, 'error': 'Agent not found'}
+        
+        settings = agent.get('settings', {})
+        notify_channel_id = settings.get('notify_channel_id')
+        
+        if not notify_channel_id:
+            return {'success': False, 'error': 'Notify channel ID not configured'}
+        
+        # Try to send the message
+        try:
+            context.bot.send_message(
+                chat_id=notify_channel_id,
+                text=text,
+                parse_mode=parse_mode
+            )
+            return {'success': True}
+        except Exception as send_error:
+            error_msg = str(send_error)
+            logging.error(f"Failed to send agent notification: {error_msg}")
+            return {'success': False, 'error': error_msg}
+            
+    except Exception as e:
+        logging.error(f"Error in send_agent_notification: {e}")
+        return {'success': False, 'error': str(e)}
 
 
 def agent_command(update: Update, context: CallbackContext):
     """Handle /agent command - show agent backend panel.
     
-    Only works in child agent bots and only for the owner_user_id.
-    Allows first-time binding if owner_user_id is None or an admin ID.
+    Only works in child agent bots and only for users in the owners array.
+    Allows first-time binding if owners is empty or all owners are admins.
     """
     user_id = update.effective_user.id
+    lang = get_user_language(update, context)
     
     # Check if this is an agent bot
     agent_id = context.bot_data.get('agent_id')
     if not agent_id:
-        update.message.reply_text("❌ This command is only available in agent bots.")
+        update.message.reply_text(t(lang, 'not_agent_bot'))
         return
     
     # Get agent info
     try:
         agent = agents.find_one({'agent_id': agent_id})
         if not agent:
-            update.message.reply_text("❌ Agent information not found.")
+            update.message.reply_text(t(lang, 'agent_not_found'))
             return
         
-        # Check if user is the owner
-        owner_user_id = agent.get('owner_user_id')
+        # Lazy migration: convert old owner_user_id to owners array
+        owners = agent.get('owners')
+        if owners is None:
+            # Check for legacy owner_user_id field
+            owner_user_id = agent.get('owner_user_id')
+            if owner_user_id is not None:
+                # Migrate to owners array
+                owners = [owner_user_id]
+                agents.update_one(
+                    {'agent_id': agent_id},
+                    {'$set': {'owners': owners}, '$unset': {'owner_user_id': ''}}
+                )
+                logging.info(f"Migrated agent {agent_id} from owner_user_id to owners array")
+            else:
+                owners = []
+        
         admin_ids = get_admin_ids()
         
-        # Allow binding if owner is None or is an admin (one-time claim)
-        if owner_user_id is None or owner_user_id in admin_ids:
+        # Check if user can claim ownership (owners empty or all are admins)
+        if not owners or all(owner_id in admin_ids for owner_id in owners):
             # Show bind button
-            show_bind_panel(update, context, agent, owner_user_id, is_callback=False)
+            show_bind_panel(update, context, agent, owners, is_callback=False, lang=lang)
             return
         
-        if user_id != owner_user_id:
-            update.message.reply_text("❌ This command is only available to the agent owner.")
+        # Check if user is an owner
+        if user_id not in owners:
+            update.message.reply_text(t(lang, 'not_owner'))
             return
         
         # Show agent panel
-        show_agent_panel(update, context, agent, is_callback=False)
+        show_agent_panel(update, context, agent, is_callback=False, lang=lang)
         
     except Exception as e:
         logging.error(f"Error in agent_command: {e}")
-        update.message.reply_text(f"❌ Error loading agent panel: {e}")
+        update.message.reply_text(f"{t(lang, 'error_loading_panel')}: {e}")
 
 
-def show_bind_panel(update: Update, context: CallbackContext, agent: dict, current_owner_id, is_callback: bool = False):
+def show_bind_panel(update: Update, context: CallbackContext, agent: dict, current_owners: list, is_callback: bool = False, lang: str = 'zh'):
     """Show panel with bind button for claiming ownership."""
     admin_ids = get_admin_ids()
     
-    if current_owner_id is None:
-        text = """<b>🤖 代理后台 - 未绑定</b>
-
-此代理机器人尚未绑定拥有者。
-
-作为代理运营者，您需要先绑定为拥有者才能访问代理后台。
-
-点击下方按钮绑定您的账号为此代理的拥有者。"""
-    elif current_owner_id in admin_ids:
-        text = """<b>🤖 代理后台 - 需要重新绑定</b>
-
-此代理机器人当前绑定的是管理员账号。
-
-作为实际的代理运营者，您可以一次性地将拥有者身份转移到您的账号。
-
-⚠️ <b>注意：</b>此操作只能执行一次，请确认您是该代理的实际运营者。"""
+    if not current_owners:
+        text = f"<b>{t(lang, 'unbound_title')}</b>\n\n{t(lang, 'unbound_message')}"
+    elif all(owner_id in admin_ids for owner_id in current_owners):
+        text = f"<b>{t(lang, 'rebind_title')}</b>\n\n{t(lang, 'rebind_message')}"
     else:
-        text = "❌ 权限错误"
+        text = "❌ 权限错误" if lang == 'zh' else "❌ Permission error"
     
     keyboard = [
-        [InlineKeyboardButton("🔐 绑定为拥有者", callback_data="agent_claim_owner")],
-        [InlineKeyboardButton("❌ 取消", callback_data=f"close {update.effective_user.id}")]
+        [InlineKeyboardButton(t(lang, 'bind_as_owner'), callback_data="agent_claim_owner")],
+        [InlineKeyboardButton(t(lang, 'cancel'), callback_data=f"close {update.effective_user.id}")]
     ]
     
     if is_callback:
@@ -107,52 +296,68 @@ def agent_claim_owner_callback(update: Update, context: CallbackContext):
     
     user_id = query.from_user.id
     agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
     
     if not agent_id:
-        query.edit_message_text("❌ Agent context not found.")
+        query.edit_message_text("❌ Agent context not found." if lang == 'en' else "❌ 未找到代理上下文。")
         return
     
     try:
         agent = agents.find_one({'agent_id': agent_id})
         if not agent:
-            query.edit_message_text("❌ Agent not found.")
+            query.edit_message_text(t(lang, 'agent_not_found'))
             return
         
-        owner_user_id = agent.get('owner_user_id')
+        # Get current owners (with migration)
+        owners = agent.get('owners')
+        if owners is None:
+            # Check for legacy owner_user_id
+            owner_user_id = agent.get('owner_user_id')
+            if owner_user_id is not None:
+                owners = [owner_user_id]
+            else:
+                owners = []
+        
         admin_ids = get_admin_ids()
         
-        # Verify this is allowed (None or admin)
-        if owner_user_id is not None and owner_user_id not in admin_ids:
-            query.edit_message_text("❌ This agent already has a non-admin owner.")
+        # Verify this is allowed (empty or all admins)
+        if owners and not all(owner_id in admin_ids for owner_id in owners):
+            query.edit_message_text("❌ This agent already has non-admin owners." if lang == 'en' else "❌ 此代理已有非管理员拥有者。")
             return
         
-        # Bind the user as owner
+        # Add user to owners array (replacing any admin owners)
         agents.update_one(
             {'agent_id': agent_id},
             {
                 '$set': {
-                    'owner_user_id': user_id,
+                    'owners': [user_id],
                     'updated_at': datetime.now()
-                }
+                },
+                '$unset': {'owner_user_id': ''}  # Remove legacy field if exists
             }
         )
         
-        logging.info(f"Agent {agent_id} owner bound to user {user_id}")
+        logging.info(f"Agent {agent_id} owner claimed by user {user_id}")
         
-        # Show success and then the agent panel
-        query.edit_message_text(
-            f"✅ <b>绑定成功！</b>\n\n"
-            f"您已成功绑定为此代理的拥有者。\n\n"
-            f"请再次使用 /agent 命令打开代理后台。",
-            parse_mode='HTML'
+        # Show success
+        success_msg = (
+            "✅ <b>Bind Successful!</b>\n\n"
+            "You have successfully bound yourself as the owner of this agent.\n\n"
+            "Please use /agent command again to open the agent backend."
+        ) if lang == 'en' else (
+            "✅ <b>绑定成功！</b>\n\n"
+            "您已成功绑定为此代理的拥有者。\n\n"
+            "请再次使用 /agent 命令打开代理后台。"
         )
+        
+        query.edit_message_text(success_msg, parse_mode='HTML')
         
     except Exception as e:
         logging.error(f"Error in agent_claim_owner_callback: {e}")
         query.edit_message_text(f"❌ 绑定失败: {e}")
 
 
-def show_agent_panel(update: Update, context: CallbackContext, agent: dict = None, is_callback: bool = False):
+def show_agent_panel(update: Update, context: CallbackContext, agent: dict = None, is_callback: bool = False, lang: str = 'zh'):
     """Show agent backend panel with stats and configuration options."""
     agent_id = context.bot_data.get('agent_id')
     
@@ -160,7 +365,7 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
         agent = agents.find_one({'agent_id': agent_id})
     
     if not agent:
-        text = "❌ Agent information not found."
+        text = t(lang, 'agent_not_found')
         if is_callback:
             update.callback_query.edit_message_text(text)
         else:
@@ -176,48 +381,51 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     
     # Get settings (new structure)
     settings = agent.get('settings', {})
-    customer_service = settings.get('customer_service', '未设置')
-    official_channel = settings.get('official_channel', '未设置')
-    restock_group = settings.get('restock_group', '未设置')
-    tutorial_link = settings.get('tutorial_link', '未设置')
-    notify_channel_id = settings.get('notify_channel_id', '未设置')
+    customer_service = settings.get('customer_service') or t(lang, 'not_set')
+    official_channel = settings.get('official_channel') or t(lang, 'not_set')
+    restock_group = settings.get('restock_group') or t(lang, 'not_set')
+    tutorial_link = settings.get('tutorial_link') or t(lang, 'not_set')
+    notify_channel_id = settings.get('notify_channel_id') or t(lang, 'not_set')
     
-    text = f"""<b>🤖 代理后台 - {name}</b>
+    text = f"""<b>{t(lang, 'agent_panel_title')} - {name}</b>
 
-<b>📊 财务概况</b>
-• 差价设置: {markup_usdt} USDT/件
-• 可提现余额: {profit_available} USDT
-• 冻结中: {profit_frozen} USDT
-• 已提现总额: {total_paid} USDT
+<b>{t(lang, 'financial_overview')}</b>
+• {t(lang, 'markup_setting')}: {markup_usdt} USDT/件
+• {t(lang, 'available_balance')}: {profit_available} USDT
+• {t(lang, 'frozen_balance')}: {profit_frozen} USDT
+• {t(lang, 'total_paid')}: {total_paid} USDT
 
-<b>🔗 联系方式</b>
-• 客服: {customer_service}
-• 官方频道: {official_channel}
-• 补货通知群: {restock_group}
-• 教程链接: {tutorial_link}
-• 通知频道ID: {notify_channel_id}
+<b>{t(lang, 'contact_info')}</b>
+• {t(lang, 'customer_service')}: {customer_service}
+• {t(lang, 'official_channel')}: {official_channel}
+• {t(lang, 'restock_group')}: {restock_group}
+• {t(lang, 'tutorial_link')}: {tutorial_link}
+• {t(lang, 'notify_channel_id')}: {notify_channel_id}
 
-<i>提示: 这些设置仅影响您的代理机器人，不会影响主机器人。</i>"""
+<i>{t(lang, 'panel_tip')}</i>"""
     
     # Build keyboard
     keyboard = [
         [
-            InlineKeyboardButton("💰 设置差价", callback_data="agent_set_markup"),
-            InlineKeyboardButton("💸 发起提现", callback_data="agent_withdraw_init")
+            InlineKeyboardButton(t(lang, 'set_markup'), callback_data="agent_set_markup"),
+            InlineKeyboardButton(t(lang, 'initiate_withdrawal'), callback_data="agent_withdraw_init")
         ],
         [
-            InlineKeyboardButton("📞 设置客服", callback_data="agent_cfg_cs"),
-            InlineKeyboardButton("📢 设置官方频道", callback_data="agent_cfg_official")
+            InlineKeyboardButton(t(lang, 'set_customer_service'), callback_data="agent_cfg_cs"),
+            InlineKeyboardButton(t(lang, 'set_official_channel'), callback_data="agent_cfg_official")
         ],
         [
-            InlineKeyboardButton("📣 设置补货通知群", callback_data="agent_cfg_restock"),
-            InlineKeyboardButton("📖 设置教程链接", callback_data="agent_cfg_tutorial")
+            InlineKeyboardButton(t(lang, 'set_restock_group'), callback_data="agent_cfg_restock"),
+            InlineKeyboardButton(t(lang, 'set_tutorial_link'), callback_data="agent_cfg_tutorial")
         ],
         [
-            InlineKeyboardButton("🔔 设置通知频道ID", callback_data="agent_cfg_notify"),
-            InlineKeyboardButton("🔘 管理链接按钮", callback_data="agent_links_btns")
+            InlineKeyboardButton(t(lang, 'set_notify_channel'), callback_data="agent_cfg_notify"),
+            InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns")
         ],
-        [InlineKeyboardButton("❌ 关闭", callback_data=f"close {update.effective_user.id}")]
+        [
+            InlineKeyboardButton(t(lang, 'send_test_notification'), callback_data="agent_test_notif")
+        ],
+        [InlineKeyboardButton(t(lang, 'close'), callback_data=f"close {update.effective_user.id}")]
     ]
     
     if is_callback:
@@ -240,11 +448,63 @@ def agent_panel_callback(update: Update, context: CallbackContext):
     query.answer()
     
     agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
     if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
+        query.edit_message_text(t(lang, 'not_agent_bot'))
         return
     
     agent = agents.find_one({'agent_id': agent_id})
+    show_agent_panel(update, context, agent, is_callback=True, lang=lang)
+
+
+def agent_test_notif_callback(update: Update, context: CallbackContext):
+    """Test notification sending to agent's notify channel."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
+    if not agent_id:
+        query.edit_message_text(t(lang, 'not_agent_bot'))
+        return
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            query.edit_message_text(t(lang, 'agent_not_found'))
+            return
+        
+        settings = agent.get('settings', {})
+        notify_channel_id = settings.get('notify_channel_id')
+        
+        if not notify_channel_id:
+            query.answer(t(lang, 'test_notif_no_channel'), show_alert=True)
+            return
+        
+        # Send test notification
+        test_message = (
+            "🔔 <b>Test Notification</b>\n\n"
+            "This is a test notification from your agent bot.\n\n"
+            "If you can see this message, your notification channel is configured correctly!"
+        ) if lang == 'en' else (
+            "🔔 <b>测试通知</b>\n\n"
+            "这是来自您的代理机器人的测试通知。\n\n"
+            "如果您能看到这条消息，说明您的通知频道配置正确！"
+        )
+        
+        result = send_agent_notification(context, test_message, parse_mode='HTML')
+        
+        if result['success']:
+            query.answer(t(lang, 'test_notif_success'), show_alert=True)
+        else:
+            error_msg = t(lang, 'test_notif_error', error=result.get('error', 'Unknown'))
+            query.answer(error_msg, show_alert=True)
+            
+    except Exception as e:
+        logging.error(f"Error in agent_test_notif_callback: {e}")
+        query.answer(f"❌ Error: {e}", show_alert=True)
     show_agent_panel(update, context, agent, is_callback=True)
 
 

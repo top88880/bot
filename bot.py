@@ -7671,6 +7671,97 @@ def textkeyboard(update: Update, context: CallbackContext):
                     user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
                     context.user_data.pop('agent_token', None)
                     return
+                
+                elif sign and sign.startswith('agent_add_owner:'):
+                    # User provided owner ID(s) or username(s)
+                    agent_id = sign.replace('agent_add_owner:', '')
+                    owner_input = text.strip()
+                    
+                    if not owner_input:
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text='⚠️ 请输入有效的用户ID或@用户名',
+                            parse_mode='HTML'
+                        )
+                        return
+                    
+                    try:
+                        from bot_integration import agents
+                        
+                        agent = agents.find_one({'agent_id': agent_id})
+                        if not agent:
+                            context.bot.send_message(
+                                chat_id=user_id,
+                                text='❌ 代理不存在',
+                                parse_mode='HTML'
+                            )
+                            user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                            return
+                        
+                        # Parse input (space-separated user IDs or @usernames)
+                        parts = owner_input.split()
+                        new_owners = []
+                        errors = []
+                        
+                        for part in parts:
+                            if part.startswith('@'):
+                                # Username - we can't directly resolve to ID without the user interacting
+                                errors.append(f"⚠️ 无法处理 {part}：请使用数字用户ID而不是@用户名")
+                            else:
+                                # Try to parse as user ID
+                                try:
+                                    owner_id = int(part)
+                                    new_owners.append(owner_id)
+                                except ValueError:
+                                    errors.append(f"⚠️ 无效的用户ID: {part}")
+                        
+                        if not new_owners and errors:
+                            context.bot.send_message(
+                                chat_id=user_id,
+                                text='❌ <b>添加失败</b>\n\n' + '\n'.join(errors),
+                                parse_mode='HTML'
+                            )
+                            return
+                        
+                        # Get current owners
+                        owners = agent.get('owners', [])
+                        
+                        # Add new owners (avoid duplicates)
+                        added_count = 0
+                        for owner_id in new_owners:
+                            if owner_id not in owners:
+                                owners.append(owner_id)
+                                added_count += 1
+                        
+                        # Update agent
+                        agents.update_one(
+                            {'agent_id': agent_id},
+                            {'$set': {'owners': owners, 'updated_at': datetime.now()}}
+                        )
+                        
+                        success_msg = f'✅ <b>添加成功！</b>\n\n已添加 {added_count} 个拥有者'
+                        if errors:
+                            success_msg += '\n\n<b>警告:</b>\n' + '\n'.join(errors)
+                        
+                        keyboard = [[InlineKeyboardButton("🔙 返回拥有者管理", callback_data=f"agent_own {agent_id}")]]
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=success_msg,
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                        
+                    except Exception as e:
+                        logging.error(f"Error adding owners: {e}")
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=f'❌ <b>添加失败</b>\n\n错误: {str(e)}',
+                            parse_mode='HTML'
+                        )
+                    
+                    # Clear sign
+                    user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                    return
 
                 if sign == 'addhb':
                     if is_number(text):
@@ -10666,7 +10757,8 @@ def register_common_handlers(dispatcher, job_queue):
             agent_claim_owner_callback, agent_markup_preset_callback,
             agent_cfg_cs_callback, agent_cfg_official_callback,
             agent_cfg_restock_callback, agent_cfg_tutorial_callback,
-            agent_cfg_notify_callback, agent_links_btns_callback
+            agent_cfg_notify_callback, agent_links_btns_callback,
+            agent_test_notif_callback
         )
         
         # Register agent backend command and callbacks (use group=-1 for priority)
@@ -10676,6 +10768,7 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher.add_handler(CallbackQueryHandler(agent_set_markup_callback, pattern='^agent_set_markup$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_markup_preset_callback, pattern='^agent_markup_preset_'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_withdraw_init_callback, pattern='^agent_withdraw_init$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_test_notif_callback, pattern='^agent_test_notif$'), group=-1)
         # Old link callback handlers (deprecated but kept for compatibility)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_support$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_channel$'), group=-1)

@@ -62,18 +62,22 @@ def save_agent(token, name, owner_user_id=None):
     Args:
         token: Bot token
         name: Agent display name
-        owner_user_id: Telegram user ID of the agent owner (optional)
+        owner_user_id: Telegram user ID of the agent owner (optional, for backwards compatibility)
     
     Returns:
         agent_id: Unique identifier for the agent
     """
     agent_id = f"agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Use owners array instead of single owner_user_id
+    owners = [owner_user_id] if owner_user_id else []
+    
     agent_data = {
         'agent_id': agent_id,
         'token': token,
         'name': name,
         'status': 'stopped',
-        'owner_user_id': owner_user_id,
+        'owners': owners,  # New field: array of owner user IDs
         'markup_usdt': '0.00000000',  # 8 decimal precision
         'profit_available_usdt': '0.00000000',  # 8 decimal precision
         'profit_frozen_usdt': '0.00000000',  # 8 decimal precision
@@ -93,7 +97,7 @@ def save_agent(token, name, owner_user_id=None):
     try:
         # Try MongoDB first
         agents.insert_one(agent_data)
-        logging.info(f"Agent {agent_id} saved to MongoDB with owner_user_id={owner_user_id}")
+        logging.info(f"Agent {agent_id} saved to MongoDB with owners={owners}")
     except Exception as e:
         logging.warning(f"MongoDB save failed: {e}, using JSON fallback")
         # Fallback to JSON
@@ -275,7 +279,7 @@ def agent_manage(update, context):
             ]
         ]
         
-        # Add toggle/delete buttons for each agent (using short callback_data)
+        # Add toggle/delete/owners buttons for each agent (using short callback_data)
         for agent in agents_list:
             agent_id = agent.get('agent_id')
             name = agent.get('name', 'Unnamed')
@@ -294,6 +298,11 @@ def agent_manage(update, context):
                     f"▶️ 启动 {display_name}", 
                     callback_data=f"agent_tgl {agent_id}"
                 ))
+            
+            row.append(InlineKeyboardButton(
+                f"👑 拥有者", 
+                callback_data=f"agent_own {agent_id}"
+            ))
             
             row.append(InlineKeyboardButton(
                 f"🗑 删除", 
@@ -550,6 +559,167 @@ def discover_and_start_agents():
         logging.error(f"Error discovering agents: {e}")
 
 
+def agent_own(update, context):
+    """Show owner management panel for an agent."""
+    query = update.callback_query
+    query.answer()
+    agent_id = query.data.replace('agent_own ', '')
+    
+    # Check admin permission
+    from bot import get_admin_ids
+    if query.from_user.id not in get_admin_ids():
+        query.answer("❌ 权限不足", show_alert=True)
+        return
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            query.answer("❌ 代理不存在", show_alert=True)
+            return
+        
+        name = agent.get('name', 'Unnamed')
+        
+        # Get owners with migration
+        owners = agent.get('owners')
+        if owners is None:
+            # Check for legacy owner_user_id
+            owner_user_id = agent.get('owner_user_id')
+            if owner_user_id is not None:
+                owners = [owner_user_id]
+                # Migrate to owners array
+                agents.update_one(
+                    {'agent_id': agent_id},
+                    {'$set': {'owners': owners}, '$unset': {'owner_user_id': ''}}
+                )
+            else:
+                owners = []
+        
+        text = f"<b>👑 拥有者管理 - {name}</b>\n\n"
+        
+        if not owners:
+            text += "📭 当前没有拥有者\n\n"
+        else:
+            text += "<b>当前拥有者:</b>\n"
+            for owner_id in owners:
+                text += f"• <code>{owner_id}</code>\n"
+            text += "\n"
+        
+        text += "<i>拥有者可以在代理机器人中使用 /agent 命令管理代理设置。</i>"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("➕ 添加拥有者", callback_data=f"agent_own_add {agent_id}"),
+            ]
+        ]
+        
+        # Add remove button for each owner
+        for owner_id in owners:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"➖ 移除 {owner_id}", 
+                    callback_data=f"agent_own_rm {agent_id} {owner_id}"
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 返回", callback_data="agent_manage")])
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in agent_own: {e}")
+        query.answer(f"❌ 错误: {str(e)}", show_alert=True)
+
+
+def agent_own_add(update, context):
+    """Initiate adding owner(s) to an agent."""
+    query = update.callback_query
+    query.answer()
+    agent_id = query.data.replace('agent_own_add ', '')
+    
+    # Check admin permission
+    from bot import get_admin_ids
+    if query.from_user.id not in get_admin_ids():
+        query.answer("❌ 权限不足", show_alert=True)
+        return
+    
+    user_id = query.from_user.id
+    
+    # Set sign to trigger owner input
+    user.update_one({'user_id': user_id}, {"$set": {'sign': f'agent_add_owner:{agent_id}'}})
+    
+    text = (
+        "<b>➕ 添加拥有者</b>\n\n"
+        "请发送要添加为拥有者的用户ID或@用户名。\n\n"
+        "<b>格式:</b>\n"
+        "• 单个: <code>123456789</code> 或 <code>@username</code>\n"
+        "• 多个: <code>123456789 @username 987654321</code> (空格分隔)\n\n"
+        "<i>用户ID可以通过让用户发送消息给机器人后在日志中查看。</i>"
+    )
+    
+    keyboard = [[InlineKeyboardButton("🚫 取消", callback_data=f"agent_own {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_own_rm(update, context):
+    """Remove an owner from an agent."""
+    query = update.callback_query
+    query.answer()
+    
+    # Parse: "agent_own_rm {agent_id} {owner_id}"
+    parts = query.data.split(' ')
+    if len(parts) < 3:
+        query.answer("❌ 格式错误", show_alert=True)
+        return
+    
+    agent_id = parts[1]
+    owner_id = int(parts[2])
+    
+    # Check admin permission
+    from bot import get_admin_ids
+    if query.from_user.id not in get_admin_ids():
+        query.answer("❌ 权限不足", show_alert=True)
+        return
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            query.answer("❌ 代理不存在", show_alert=True)
+            return
+        
+        owners = agent.get('owners', [])
+        if owner_id not in owners:
+            query.answer("❌ 该用户不是拥有者", show_alert=True)
+            return
+        
+        # Remove owner
+        owners.remove(owner_id)
+        agents.update_one(
+            {'agent_id': agent_id},
+            {'$set': {'owners': owners, 'updated_at': datetime.now()}}
+        )
+        
+        logging.info(f"Removed owner {owner_id} from agent {agent_id}")
+        query.answer("✅ 拥有者已移除", show_alert=True)
+        
+        # Refresh owner panel
+        context.match = type('obj', (object,), {'data': f"agent_own {agent_id}"})()
+        update.callback_query.data = f"agent_own {agent_id}"
+        agent_own(update, context)
+        
+    except Exception as e:
+        logging.error(f"Error in agent_own_rm: {e}")
+        query.answer(f"❌ 错误: {str(e)}", show_alert=True)
+
+
 def integrate_agent_system(dispatcher, job_queue):
     """
     Integrate agent management system into the bot.
@@ -569,6 +739,9 @@ def integrate_agent_system(dispatcher, job_queue):
         dispatcher.add_handler(CallbackQueryHandler(agent_new, pattern='^agent_new$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_tgl, pattern='^agent_tgl '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_del, pattern='^agent_del '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_own, pattern='^agent_own '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_own_add, pattern='^agent_own_add '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_own_rm, pattern='^agent_own_rm '), group=-1)
         
         # Register legacy long callback versions for backward compatibility
         dispatcher.add_handler(CallbackQueryHandler(agent_add, pattern='^agent_add$'), group=-1)
@@ -581,6 +754,9 @@ def integrate_agent_system(dispatcher, job_queue):
         logging.info("   - agent_new (add new agent)")
         logging.info("   - agent_tgl (toggle agent)")
         logging.info("   - agent_del (delete agent)")
+        logging.info("   - agent_own (owner management)")
+        logging.info("   - agent_own_add (add owner)")
+        logging.info("   - agent_own_rm (remove owner)")
         logging.info("   - Legacy handlers (agent_add, agent_toggle, agent_delete)")
         
         # Discover and start existing agents
