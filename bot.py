@@ -72,6 +72,14 @@ from mongo import topup, user
 from utils import create_easypay_url, create_payment_with_qrcode
 from pay_server import start_flask_server
 
+# Multi-tenant agent system integration
+try:
+    from bot_integration import integrate_agent_system
+    AGENT_SYSTEM_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Agent system not available: {e}")
+    AGENT_SYSTEM_AVAILABLE = False
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -10253,6 +10261,15 @@ def main():
     )
 
     dispatcher = updater.dispatcher
+    
+    # Initialize multi-tenant agent system
+    if AGENT_SYSTEM_AVAILABLE:
+        try:
+            integrate_agent_system(dispatcher, updater.job_queue)
+        except Exception as e:
+            logging.error(f"Failed to initialize agent system: {e}")
+            logging.info("Continuing with master bot only...")
+    
     dispatcher.add_handler(CommandHandler('start', start, run_async=True))
     dispatcher.add_handler(CommandHandler('help', help_command, run_async=True))
     dispatcher.add_handler(CommandHandler('add', adm, run_async=True))
