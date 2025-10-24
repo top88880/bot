@@ -1268,6 +1268,7 @@ def show_admin_panel(update: Update, context: CallbackContext, user_id: int):
         InlineKeyboardButton('导出用户列表', callback_data='export_userlist'),
         InlineKeyboardButton('导出下单记录', callback_data='export_orders'),
         InlineKeyboardButton('管理员管理', callback_data='admin_manage'),
+        InlineKeyboardButton('代理管理', callback_data='agent_manage'),
         InlineKeyboardButton('销售统计', callback_data='sales_dashboard'),
         InlineKeyboardButton('库存预警', callback_data='stock_alerts'),
         InlineKeyboardButton('数据导出', callback_data='data_export_menu'),
@@ -4576,6 +4577,7 @@ def backstart(update: Update, context: CallbackContext):
         InlineKeyboardButton('导出用户列表', callback_data='export_userlist'),
         InlineKeyboardButton('导出下单记录', callback_data='export_orders'),
         InlineKeyboardButton('管理员管理', callback_data='admin_manage'),
+        InlineKeyboardButton('代理管理', callback_data='agent_manage'),
         InlineKeyboardButton('销售统计', callback_data='sales_dashboard'),
         InlineKeyboardButton('库存预警', callback_data='stock_alerts'),
         InlineKeyboardButton('数据导出', callback_data='data_export_menu'),
@@ -7291,6 +7293,87 @@ def textkeyboard(update: Update, context: CallbackContext):
                 sign = 0
         if sign != 0:
             if update.message.text:
+                
+                # Agent management sign flows
+                if sign == 'agent_add_token':
+                    # User provided a bot token
+                    token = text.strip()
+                    if token and len(token) > 20:  # Basic validation
+                        # Store token temporarily in context
+                        context.user_data['agent_token'] = token
+                        user.update_one({'user_id': user_id}, {"$set": {'sign': 'agent_add_name'}})
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text='✅ Token已接收！\n\n请输入代理昵称/名称:',
+                            parse_mode='HTML'
+                        )
+                    else:
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text='⚠️ Token格式不正确，请重新输入有效的Bot Token:',
+                            parse_mode='HTML'
+                        )
+                    return
+                
+                elif sign == 'agent_add_name':
+                    # User provided agent name
+                    agent_name = text.strip()
+                    if not agent_name or len(agent_name) > 50:
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text='⚠️ 名称长度应在1-50字符之间，请重新输入:',
+                            parse_mode='HTML'
+                        )
+                        return
+                    
+                    # Get the stored token
+                    agent_token = context.user_data.get('agent_token')
+                    if not agent_token:
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text='⚠️ 会话已过期，请重新开始添加代理。',
+                            parse_mode='HTML'
+                        )
+                        user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                        return
+                    
+                    # Import agent management functions
+                    try:
+                        from bot_integration import save_agent, start_agent_bot
+                        
+                        # Save agent to storage
+                        agent_id = save_agent(agent_token, agent_name)
+                        
+                        # Try to start the agent bot
+                        success = start_agent_bot(agent_id, agent_token)
+                        
+                        if success:
+                            context.bot.send_message(
+                                chat_id=user_id,
+                                text=f'✅ 代理 "{agent_name}" 已创建并启动成功！\n\n'
+                                     f'代理ID: {agent_id}\n'
+                                     f'状态: 运行中',
+                                parse_mode='HTML'
+                            )
+                        else:
+                            context.bot.send_message(
+                                chat_id=user_id,
+                                text=f'⚠️ 代理 "{agent_name}" 已保存，但启动失败。\n\n'
+                                     f'请检查Token是否有效，或稍后手动启动。',
+                                parse_mode='HTML'
+                            )
+                    except Exception as e:
+                        logging.error(f"Error creating agent: {e}")
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=f'❌ 创建代理失败: {str(e)}',
+                            parse_mode='HTML'
+                        )
+                    
+                    # Clear sign and context data
+                    user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                    context.user_data.pop('agent_token', None)
+                    return
 
                 if sign == 'addhb':
                     if is_number(text):
@@ -10245,31 +10328,14 @@ def shouyishuoming_callback(update: Update, context: CallbackContext):
     except Exception as e:
         logging.error(f"edit_message_text 错误：{e}")
 
-def main():
-    BOT_TOKEN = os.getenv('BOT_TOKEN')  # 从 .env 读取 token
-
-    flask_thread = threading.Thread(target=start_flask_server)
-    flask_thread.start()
-
-    Thread(target=start_flask_server, daemon=True).start()
-
-    updater = Updater(
-        token=BOT_TOKEN,
-        use_context=True,
-        workers=128,
-        request_kwargs={'read_timeout': REQUEST_TIMEOUT, 'connect_timeout': REQUEST_TIMEOUT}
-    )
-
-    dispatcher = updater.dispatcher
+def register_common_handlers(dispatcher, job_queue):
+    """
+    Register all common handlers that should be shared between master bot and agent bots.
     
-    # Initialize multi-tenant agent system
-    if AGENT_SYSTEM_AVAILABLE:
-        try:
-            integrate_agent_system(dispatcher, updater.job_queue)
-        except Exception as e:
-            logging.error(f"Failed to initialize agent system: {e}")
-            logging.info("Continuing with master bot only...")
-    
+    Args:
+        dispatcher: Telegram bot dispatcher
+        job_queue: Job queue for scheduled tasks
+    """
     dispatcher.add_handler(CommandHandler('start', start, run_async=True))
     dispatcher.add_handler(CommandHandler('help', help_command, run_async=True))
     dispatcher.add_handler(CommandHandler('add', adm, run_async=True))
@@ -10420,9 +10486,63 @@ def main():
     dispatcher.add_handler(MessageHandler(
         (Filters.text | Filters.photo | Filters.animation | Filters.video | Filters.document) & ~(Filters.command),
         textkeyboard, run_async=True))
-    updater.job_queue.run_repeating(suoyouchengxu, 1, 1, name='suoyouchengxu')
-    updater.job_queue.run_repeating(jiexi, 3, 1, name='chongzhi')
+    
+    # Register scheduled jobs
+    if job_queue:
+        job_queue.run_repeating(suoyouchengxu, 1, 1, name='suoyouchengxu')
+        job_queue.run_repeating(jiexi, 3, 1, name='chongzhi')
+
+
+def start_bot_with_token(token, enable_agent_system=False):
+    """
+    Start a bot instance with the given token.
+    This function is used to spawn agent bots that share the same handlers as the master bot.
+    
+    Args:
+        token: Bot token string
+        enable_agent_system: If True, enables agent management system (only for master bot)
+    
+    Returns:
+        Updater instance
+    """
+    logging.info(f"Starting bot with token {'(master)' if enable_agent_system else '(agent)'}...")
+    
+    updater = Updater(
+        token=token,
+        use_context=True,
+        workers=128,
+        request_kwargs={'read_timeout': REQUEST_TIMEOUT, 'connect_timeout': REQUEST_TIMEOUT}
+    )
+    
+    dispatcher = updater.dispatcher
+    
+    # Register all common handlers
+    register_common_handlers(dispatcher, updater.job_queue)
+    
+    # Only enable agent system for master bot
+    if enable_agent_system and AGENT_SYSTEM_AVAILABLE:
+        try:
+            integrate_agent_system(dispatcher, updater.job_queue)
+        except Exception as e:
+            logging.error(f"Failed to initialize agent system: {e}")
+            logging.info("Continuing without agent system...")
+    
+    # Start polling
     updater.start_polling(timeout=BOT_TIMEOUT)
+    
+    return updater
+
+
+def main():
+    BOT_TOKEN = os.getenv('BOT_TOKEN')  # 从 .env 读取 token
+
+    # Start Flask payment server only once for the master bot
+    flask_thread = threading.Thread(target=start_flask_server, daemon=True)
+    flask_thread.start()
+    logging.info("Flask payment server started")
+
+    # Start master bot with agent system enabled
+    updater = start_bot_with_token(BOT_TOKEN, enable_agent_system=True)
     updater.idle()
 
 

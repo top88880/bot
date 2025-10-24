@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv
+venv/
+ENV/
+
+# Runtime files
+agents.json
+*.log
+logs/
+临时文件夹/
+发货/
+协议号发货/
+手机接码发货/
+谷歌发货/
+协议号/
+号包/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
