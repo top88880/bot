@@ -55,13 +55,14 @@ def get_all_agents():
     return load_agents_from_file()
 
 
-def save_agent(token, name):
+def save_agent(token, name, owner_user_id=None):
     """
     Save a new agent to storage.
     
     Args:
         token: Bot token
         name: Agent display name
+        owner_user_id: Telegram user ID of the agent owner (optional)
     
     Returns:
         agent_id: Unique identifier for the agent
@@ -72,6 +73,17 @@ def save_agent(token, name):
         'token': token,
         'name': name,
         'status': 'stopped',
+        'owner_user_id': owner_user_id,
+        'markup_usdt': '0',
+        'profit_available_usdt': '0',
+        'profit_frozen_usdt': '0',
+        'total_paid_usdt': '0',
+        'links': {
+            'support_link': None,
+            'channel_link': None,
+            'announcement_link': None,
+            'extra_links': []
+        },
         'created_at': datetime.now(),
         'updated_at': datetime.now()
     }
@@ -79,7 +91,7 @@ def save_agent(token, name):
     try:
         # Try MongoDB first
         agents.insert_one(agent_data)
-        logging.info(f"Agent {agent_id} saved to MongoDB")
+        logging.info(f"Agent {agent_id} saved to MongoDB with owner_user_id={owner_user_id}")
     except Exception as e:
         logging.warning(f"MongoDB save failed: {e}, using JSON fallback")
         # Fallback to JSON

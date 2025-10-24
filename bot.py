@@ -7459,8 +7459,8 @@ def textkeyboard(update: Update, context: CallbackContext):
                             parse_mode='HTML'
                         )
                         
-                        # Save agent to storage
-                        agent_id = save_agent(agent_token, agent_name)
+                        # Save agent to storage (with creator's user_id as owner)
+                        agent_id = save_agent(agent_token, agent_name, owner_user_id=user_id)
                         
                         # Update processing message
                         try:
@@ -10516,10 +10516,27 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher.add_handler(CallbackQueryHandler(agent_add_button_callback, pattern='^agent_add_button$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_delete_button_callback, pattern='^agent_delete_button$'), group=-1)
         
-        # Agent backend text handler will be registered with the text handlers below
         logging.info("✅ Agent backend handlers registered")
     except ImportError as e:
         logging.warning(f"Could not import agent backend handlers: {e}")
+    
+    # Import admin withdrawal commands
+    try:
+        from admin.withdraw_commands import (
+            withdraw_list_command, withdraw_approve_command, withdraw_reject_command,
+            withdraw_pay_command, withdraw_stats_command
+        )
+        
+        # Register admin withdrawal commands
+        dispatcher.add_handler(CommandHandler('withdraw_list', withdraw_list_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_approve', withdraw_approve_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_reject', withdraw_reject_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_pay', withdraw_pay_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_stats', withdraw_stats_command, run_async=True))
+        
+        logging.info("✅ Admin withdrawal commands registered")
+    except ImportError as e:
+        logging.warning(f"Could not import admin withdrawal commands: {e}")
     
     dispatcher.add_handler(CommandHandler('start', start, run_async=True))
     dispatcher.add_handler(CommandHandler('help', help_command, run_async=True))
