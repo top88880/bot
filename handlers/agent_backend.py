@@ -1080,6 +1080,7 @@ def handle_withdraw_amount_input(update: Update, context: CallbackContext, agent
 def handle_withdraw_address_input(update: Update, context: CallbackContext, agent_id: str, text: str):
     """Handle withdrawal address input and create withdrawal request."""
     address = text.strip()
+    user_id = update.effective_user.id
     
     # Simple TRC20 address validation
     if not (address.startswith('T') and len(address) == 34):
@@ -1099,7 +1100,7 @@ def handle_withdraw_address_input(update: Update, context: CallbackContext, agen
         withdrawal_doc = {
             'request_id': request_id,
             'agent_id': agent_id,
-            'owner_user_id': context.bot_data.get('owner_user_id'),
+            'requester_user_id': user_id,  # Changed from owner_user_id to requester_user_id
             'amount_usdt': str(amount.quantize(Decimal('0.01'))),
             'fee_usdt': '1',
             'address': address,

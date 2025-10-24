@@ -162,24 +162,15 @@ def start_agent_bot(agent_id, token):
         
         logging.info(f"Starting agent bot {agent_id}...")
         
-        # Get agent info to extract owner_user_id
-        try:
-            agent = agents.find_one({'agent_id': agent_id})
-            owner_user_id = agent.get('owner_user_id') if agent else None
-        except Exception as e:
-            logging.warning(f"Could not fetch agent owner: {e}")
-            owner_user_id = None
-        
         # Import here to avoid circular dependency
         from bot import start_bot_with_token
         
         # Start bot in a separate thread
         def run_agent():
             try:
-                # Pass agent_context with agent_id and owner_user_id
+                # Pass agent_context with just agent_id
                 agent_context = {
-                    'agent_id': agent_id,
-                    'owner_user_id': owner_user_id
+                    'agent_id': agent_id
                 }
                 updater = start_bot_with_token(
                     token, 
