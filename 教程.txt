@@ -1,0 +1,87 @@
+1.首先安装mongo，需要打开安全身份验证，改了密码之后关闭
+2.安装进程守护管理
+3.创建文件目录上传我给你的源码
+
+现在填写env文件
+
+填写好了之后 我们要安装python3.8 因为我们是telegram-bot13.15的版本 
+
+安装依赖
+
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y gcc make wget zlib-devel bzip2 bzip2-devel \
+    xz-devel libffi-devel ncurses-devel sqlite-devel readline-devel \
+    tk-devel gdbm-devel libuuid-devel
+
+
+下载源码
+
+wget https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz
+tar -xvzf Python-3.8.18.tgz
+cd Python-3.8.18
+
+
+编译安装
+
+./configure --enable-optimizations
+make -j$(nproc)
+sudo make altinstall
+
+
+⚠️ 注意：用 make altinstall，避免覆盖系统自带的 python3。
+
+验证安装
+
+python3.8 --version
+
+现在开始安装模块 稍等一下
+
+为了方便直接找AI就行了 
+
+或者直接使用 python3.8 -m pip install -r requirements.txt
+
+如果你要启动支付宝微信就要打开8000端口
+
+现在开始配置zf和jxqk的 
+
+4.安装支付插件 服务器版本要 CentOS Stream 9  
+
+wget https://github.com/rabbitmq/erlang-rpm/releases/download/v24.3.4.11/erlang-24.3.4.11-1.el9.x86_64.rpm
+
+
+dnf install erlang-24.3.4.11-1.el9.x86_64.rpm
+
+wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.12.14/rabbitmq-server-3.12.14-1.el8.noarch.rpm
+
+
+dnf install rabbitmq-server-3.12.14-1.el8.noarch.rpm
+
+
+systemctl status rabbitmq-server
+
+
+
+systemctl start rabbitmq-server
+
+systemctl enable --now rabbitmq-server
+
+rabbitmq-plugins enable rabbitmq_management
+
+rabbitmqctl add_user admin admin
+
+rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+
+rabbitmqctl set_user_tags admin administrator
+
+
+sudo firewall-cmd --zone=public --add-port=15672/tcp --permanent
+
+
+sudo firewall-cmd --reload
+
+
+
+http://ip:15672
+
+
+这里就搞定了 就不用管了 都没问题了好了现在就是搭建完成了 
