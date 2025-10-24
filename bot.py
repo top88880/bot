@@ -6412,7 +6412,9 @@ def gmqq(update: Update, context: CallbackContext):
 
     user_list = user.find_one({'user_id': user_id})
     USDT = user_list['USDT']
-    if USDT < float(display_price):
+    # Compare using Decimal for precision
+    user_balance = Decimal(str(USDT))
+    if user_balance < display_price:
         fstext = f'''
 ❌余额不足，请立即充值
             '''
