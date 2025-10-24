@@ -10583,7 +10583,8 @@ def register_common_handlers(dispatcher, job_queue):
     try:
         from admin.withdraw_commands import (
             withdraw_list_command, withdraw_approve_command, withdraw_reject_command,
-            withdraw_pay_command, withdraw_stats_command
+            withdraw_pay_command, withdraw_stats_command,
+            withdraw_list_button, withdraw_approve_button, withdraw_reject_button
         )
         
         # Register admin withdrawal commands
@@ -10593,7 +10594,12 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher.add_handler(CommandHandler('withdraw_pay', withdraw_pay_command, run_async=True))
         dispatcher.add_handler(CommandHandler('withdraw_stats', withdraw_stats_command, run_async=True))
         
-        logging.info("✅ Admin withdrawal commands registered")
+        # Register button-based withdrawal review handlers
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_list_button, pattern='^agent_wd_list$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_approve_button, pattern='^agent_w_ok '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_reject_button, pattern='^agent_w_no '), group=-1)
+        
+        logging.info("✅ Admin withdrawal commands and button handlers registered")
     except ImportError as e:
         logging.warning(f"Could not import admin withdrawal commands: {e}")
     

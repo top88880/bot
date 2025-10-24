@@ -299,6 +299,22 @@ def agent_manage(update, context):
             ))
             buttons.append(row)
         
+        # Add withdrawal review button
+        pending_count = 0
+        try:
+            from mongo import agent_withdrawals
+            pending_count = agent_withdrawals.count_documents({'status': 'pending'})
+        except:
+            pass
+        
+        if pending_count > 0:
+            buttons.append([
+                InlineKeyboardButton(
+                    f"💰 审核提现 ({pending_count})", 
+                    callback_data="agent_wd_list"
+                )
+            ])
+        
         buttons.append([InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")])
         
         query.edit_message_text(

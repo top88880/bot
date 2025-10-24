@@ -414,3 +414,222 @@ def withdraw_stats_command(update: Update, context: CallbackContext):
     except Exception as e:
         logging.error(f"Error in withdraw_stats_command: {e}")
         update.message.reply_text(f"❌ 获取统计失败: {e}")
+
+
+# Button-based withdrawal review handlers
+
+def withdraw_list_button(update: Update, context: CallbackContext):
+    """Show withdrawal list with buttons for review.
+    
+    This is the button-based version for easier admin workflow.
+    """
+    query = update.callback_query
+    query.answer()
+    
+    if not is_admin(query.from_user.id):
+        query.edit_message_text("❌ 仅管理员可用")
+        return
+    
+    try:
+        # Get pending withdrawals
+        withdrawals = list(agent_withdrawals.find({'status': 'pending'}).sort('created_at', -1).limit(10))
+        
+        if not withdrawals:
+            text = "📭 暂无待审核的提现申请"
+            keyboard = [[InlineKeyboardButton("🔄 刷新", callback_data="agent_wd_list")]]
+            query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+            return
+        
+        text = "<b>💰 待审核提现申请</b>\n\n"
+        
+        for idx, w in enumerate(withdrawals, 1):
+            request_id = w.get('request_id', str(w['_id']))
+            agent_id = w.get('agent_id', 'Unknown')
+            amount = w.get('amount_usdt', '0')
+            fee = w.get('fee_usdt', '0')
+            net_amount = Decimal(amount) - Decimal(fee)
+            address = w.get('address', 'N/A')
+            created = w.get('created_at')
+            created_str = created.strftime('%Y-%m-%d %H:%M') if created else 'N/A'
+            
+            # Get agent name
+            agent = agents.find_one({'agent_id': agent_id})
+            agent_name = agent.get('name', 'Unknown') if agent else 'Unknown'
+            
+            text += f"<b>{idx}. {agent_name}</b>\n"
+            text += f"   ID: <code>{request_id}</code>\n"
+            text += f"   金额: {amount} USDT (手续费: {fee}, 实付: {net_amount})\n"
+            text += f"   地址: <code>{address[:10]}...{address[-6:]}</code>\n"
+            text += f"   时间: {created_str}\n\n"
+        
+        text += f"<i>显示最近 {len(withdrawals)} 条</i>"
+        
+        # Build keyboard with approve/reject buttons for each request
+        keyboard = []
+        for w in withdrawals[:5]:  # Limit to first 5 to avoid callback_data length issues
+            request_id = w.get('request_id', str(w['_id']))
+            short_id = request_id[-8:]  # Last 8 chars for button
+            keyboard.append([
+                InlineKeyboardButton(f"✅ 批准 {short_id}", callback_data=f"agent_w_ok {request_id}"),
+                InlineKeyboardButton(f"❌ 拒绝 {short_id}", callback_data=f"agent_w_no {request_id}")
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("🔄 刷新", callback_data="agent_wd_list"),
+            InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")
+        ])
+        
+        query.edit_message_text(text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+        
+    except Exception as e:
+        logging.error(f"Error in withdraw_list_button: {e}")
+        query.edit_message_text(f"❌ 获取列表失败: {e}")
+
+
+def withdraw_approve_button(update: Update, context: CallbackContext):
+    """Approve withdrawal via button callback."""
+    query = update.callback_query
+    
+    if not is_admin(query.from_user.id):
+        query.answer("❌ 仅管理员可用", show_alert=True)
+        return
+    
+    # Extract request_id from callback_data
+    request_id = query.data.replace('agent_w_ok ', '')
+    
+    try:
+        # Find the withdrawal
+        withdrawal = agent_withdrawals.find_one({'request_id': request_id})
+        if not withdrawal:
+            query.answer(f"❌ 未找到申请", show_alert=True)
+            return
+        
+        if withdrawal.get('status') != 'pending':
+            query.answer(f"❌ 申请状态已变更: {withdrawal.get('status')}", show_alert=True)
+            return
+        
+        # Approve the withdrawal
+        agent_withdrawals.update_one(
+            {'request_id': request_id},
+            {
+                '$set': {
+                    'status': 'approved',
+                    'reviewed_at': datetime.now(),
+                    'reviewed_by': query.from_user.id
+                }
+            }
+        )
+        
+        agent_id = withdrawal.get('agent_id')
+        amount = withdrawal.get('amount_usdt', '0')
+        address = withdrawal.get('address', 'N/A')
+        
+        query.answer("✅ 已批准", show_alert=True)
+        
+        # Notify agent owner
+        try:
+            owner_user_id = withdrawal.get('owner_user_id')
+            if owner_user_id:
+                context.bot.send_message(
+                    chat_id=owner_user_id,
+                    text=f"✅ 您的提现申请已审核通过\n\n"
+                         f"<b>申请ID:</b> <code>{request_id}</code>\n"
+                         f"<b>金额:</b> {amount} USDT\n"
+                         f"<b>地址:</b> <code>{address}</code>\n\n"
+                         f"我们将尽快处理付款。",
+                    parse_mode='HTML'
+                )
+        except Exception as e:
+            logging.warning(f"Could not notify agent owner: {e}")
+        
+        # Refresh the list
+        withdraw_list_button(update, context)
+        
+    except Exception as e:
+        logging.error(f"Error in withdraw_approve_button: {e}")
+        query.answer(f"❌ 批准失败: {e}", show_alert=True)
+
+
+def withdraw_reject_button(update: Update, context: CallbackContext):
+    """Reject withdrawal via button callback."""
+    query = update.callback_query
+    
+    if not is_admin(query.from_user.id):
+        query.answer("❌ 仅管理员可用", show_alert=True)
+        return
+    
+    # Extract request_id from callback_data
+    request_id = query.data.replace('agent_w_no ', '')
+    
+    try:
+        # Find the withdrawal
+        withdrawal = agent_withdrawals.find_one({'request_id': request_id})
+        if not withdrawal:
+            query.answer(f"❌ 未找到申请", show_alert=True)
+            return
+        
+        if withdrawal.get('status') != 'pending':
+            query.answer(f"❌ 申请状态已变更: {withdrawal.get('status')}", show_alert=True)
+            return
+        
+        agent_id = withdrawal.get('agent_id')
+        amount = Decimal(str(withdrawal.get('amount_usdt', '0')))
+        reason = '管理员拒绝'  # Default reason
+        
+        # Reject the withdrawal
+        agent_withdrawals.update_one(
+            {'request_id': request_id},
+            {
+                '$set': {
+                    'status': 'rejected',
+                    'reviewed_at': datetime.now(),
+                    'reviewed_by': query.from_user.id,
+                    'reject_reason': reason
+                }
+            }
+        )
+        
+        # Unfreeze the funds
+        agent = agents.find_one({'agent_id': agent_id})
+        if agent:
+            current_available = Decimal(str(agent.get('profit_available_usdt', '0')))
+            current_frozen = Decimal(str(agent.get('profit_frozen_usdt', '0')))
+            
+            new_available = current_available + amount
+            new_frozen = current_frozen - amount
+            
+            agents.update_one(
+                {'agent_id': agent_id},
+                {
+                    '$set': {
+                        'profit_available_usdt': str(new_available.quantize(Decimal('0.01'))),
+                        'profit_frozen_usdt': str(new_frozen.quantize(Decimal('0.01'))),
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
+        
+        query.answer("✅ 已拒绝", show_alert=True)
+        
+        # Notify agent owner
+        try:
+            owner_user_id = withdrawal.get('owner_user_id')
+            if owner_user_id:
+                context.bot.send_message(
+                    chat_id=owner_user_id,
+                    text=f"❌ 您的提现申请已被拒绝\n\n"
+                         f"<b>申请ID:</b> <code>{request_id}</code>\n"
+                         f"<b>金额:</b> {amount} USDT\n"
+                         f"<b>理由:</b> {reason}\n\n"
+                         f"<i>冻结的金额已返回可提现余额</i>",
+                    parse_mode='HTML'
+                )
+        except Exception as e:
+            logging.warning(f"Could not notify agent owner: {e}")
+        
+        # Refresh the list
+        withdraw_list_button(update, context)
+        
+    except Exception as e:
+        logging.error(f"Error in withdraw_reject_button: {e}")
+        query.answer(f"❌ 拒绝失败: {e}", show_alert=True)
