@@ -273,6 +273,55 @@ def record_agent_profit(context: CallbackContext, order_doc: dict):
     except Exception as e:
         logging.error(f"Error recording agent profit: {e}")
 
+def get_customer_service_link(context: CallbackContext) -> str:
+    """Get customer service link - agent-specific if available, else default.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Customer service link/username
+    """
+    agent_links = get_agent_links(context)
+    support_link = agent_links.get('support_link')
+    
+    if support_link:
+        return support_link
+    
+    # Return default
+    return os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+
+def get_channel_link(context: CallbackContext) -> str:
+    """Get channel link - agent-specific if available, else default.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Channel link/username
+    """
+    agent_links = get_agent_links(context)
+    channel_link = agent_links.get('channel_link')
+    
+    if channel_link:
+        return channel_link
+    
+    # Return default
+    return os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
+
+def get_announcement_link(context: CallbackContext) -> str:
+    """Get announcement link - agent-specific if available, else None.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Announcement link or None
+    """
+    agent_links = get_agent_links(context)
+    return agent_links.get('announcement_link')
+
+
 def make_directory(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -4272,8 +4321,8 @@ def help_command(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     lang = user.find_one({'user_id': user_id}).get('lang', 'zh')
     
-    # ✅ 从环境变量读取客服联系方式
-    customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+    # ✅ Get customer service link (agent-specific or default)
+    customer_service = get_customer_service_link(context)
 
     if lang == 'zh':
         text = (
@@ -8813,16 +8862,35 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '📞联系客服' or text == '📞Contact Support':
                 del_message(update.message)
-                # ✅ 从环境变量读取联系方式
-                customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
-                official_channel = os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
+                # ✅ Get contact links (agent-specific or default)
+                customer_service = get_customer_service_link(context)
+                official_channel = get_channel_link(context)
                 restock_group = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
+                
+                # Get agent-specific extra links if available
+                agent_links = get_agent_links(context)
+                extra_links = agent_links.get('extra_links', [])
                 
                 msg = f"""
 ------------------------
 <b>{'客服' if lang == 'zh' else 'Support'}：</b>{customer_service}  
 <b>{'官方频道' if lang == 'zh' else 'Official Channel'}：</b>{official_channel}  
-<b>{'补货通知群' if lang == 'zh' else 'Restock Group'}：</b>{restock_group}
+<b>{'补货通知群' if lang == 'zh' else 'Restock Group'}：</b>{restock_group}"""
+                
+                # Add agent-specific announcement link if available
+                announcement_link = get_announcement_link(context)
+                if announcement_link:
+                    msg += f"\n<b>{'公告' if lang == 'zh' else 'Announcement'}：</b>{announcement_link}"
+                
+                # Add custom links
+                if extra_links:
+                    msg += "\n\n<b>{'更多链接' if lang == 'zh' else 'More Links'}：</b>"
+                    for link_data in extra_links:
+                        title = link_data.get('title', 'Link')
+                        url = link_data.get('url', '')
+                        msg += f"\n• <a href='{url}'>{title}</a>"
+                
+                msg += """
 ------------------------
 <i>{'无其它任何联系方式，谨防诈骗！' if lang == 'zh' else 'No other contact methods. Beware of scams!'}</i>
                 """.strip()
@@ -8857,10 +8925,10 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '🔷出货通知' or text == '🔷Delivery Notice':
                 del_message(update.message)
-                # ✅ 从环境变量读取补货通知群
-                restock_group = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
+                # ✅ Get channel link (agent-specific or default)
+                channel_link = get_channel_link(context)
                 
-                msg = f"<b>{'🔥补货通知群：' if lang == 'zh' else '🔥 Restock Notification Group:'}</b> {restock_group}"
+                msg = f"<b>{'🔥补货通知群：' if lang == 'zh' else '🔥 Restock Notification Group:'}</b> {channel_link}"
                 keyboard = [[InlineKeyboardButton("❌关闭" if lang == 'zh' else "❌ Close", callback_data=f"close {user_id}")]]
                 context.bot.send_message(
                     chat_id=user_id,
