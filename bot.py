@@ -7298,31 +7298,51 @@ def textkeyboard(update: Update, context: CallbackContext):
                 if sign == 'agent_add_token':
                     # User provided a bot token
                     token = text.strip()
-                    if token and len(token) > 20:  # Basic validation
-                        # Store token temporarily in context
-                        context.user_data['agent_token'] = token
-                        user.update_one({'user_id': user_id}, {"$set": {'sign': 'agent_add_name'}})
+                    
+                    # Basic token validation
+                    if not token or len(token) < 30 or ':' not in token:
+                        keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="agent_manage")]]
                         context.bot.send_message(
                             chat_id=user_id,
-                            text='✅ Token已接收！\n\n请输入代理昵称/名称:',
-                            parse_mode='HTML'
+                            text='⚠️ <b>Token格式不正确</b>\n\n'
+                                 'Bot Token应该类似于:\n'
+                                 '<code>1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</code>\n\n'
+                                 '请重新输入有效的Bot Token:',
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
                         )
-                    else:
-                        context.bot.send_message(
-                            chat_id=user_id,
-                            text='⚠️ Token格式不正确，请重新输入有效的Bot Token:',
-                            parse_mode='HTML'
-                        )
+                        return
+                    
+                    # Store token temporarily in context
+                    context.user_data['agent_token'] = token
+                    user.update_one({'user_id': user_id}, {"$set": {'sign': 'agent_add_name'}})
+                    
+                    keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="agent_manage")]]
+                    context.bot.send_message(
+                        chat_id=user_id,
+                        text='✅ <b>Token已接收！</b>\n\n'
+                             '🤖 <b>创建新代理 - 步骤 2/2</b>\n\n'
+                             '📝 请输入代理的显示名称:\n\n'
+                             '<i>例如: 零售代理、批发代理、区域A代理等</i>\n'
+                             '<i>名称长度: 1-50字符</i>',
+                        parse_mode='HTML',
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
                     return
                 
                 elif sign == 'agent_add_name':
                     # User provided agent name
                     agent_name = text.strip()
                     if not agent_name or len(agent_name) > 50:
+                        keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="agent_manage")]]
                         context.bot.send_message(
                             chat_id=user_id,
-                            text='⚠️ 名称长度应在1-50字符之间，请重新输入:',
-                            parse_mode='HTML'
+                            text='⚠️ <b>名称长度不正确</b>\n\n'
+                                 '名称应在 1-50 字符之间\n'
+                                 '当前长度: ' + str(len(agent_name)) + '\n\n'
+                                 '请重新输入:',
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
                         )
                         return
                     
@@ -7341,33 +7361,85 @@ def textkeyboard(update: Update, context: CallbackContext):
                     try:
                         from bot_integration import save_agent, start_agent_bot
                         
+                        # Show processing message
+                        processing_msg = context.bot.send_message(
+                            chat_id=user_id,
+                            text='⏳ <b>正在创建代理...</b>\n\n'
+                                 '1. 保存配置 ⏳\n'
+                                 '2. 验证Token ⏳\n'
+                                 '3. 启动Bot ⏳\n\n'
+                                 '<i>请稍候...</i>',
+                            parse_mode='HTML'
+                        )
+                        
                         # Save agent to storage
                         agent_id = save_agent(agent_token, agent_name)
+                        
+                        # Update processing message
+                        try:
+                            context.bot.edit_message_text(
+                                chat_id=user_id,
+                                message_id=processing_msg.message_id,
+                                text='⏳ <b>正在创建代理...</b>\n\n'
+                                     '1. 保存配置 ✅\n'
+                                     '2. 验证Token ⏳\n'
+                                     '3. 启动Bot ⏳\n\n'
+                                     '<i>正在启动Bot...</i>',
+                                parse_mode='HTML'
+                            )
+                        except:
+                            pass
                         
                         # Try to start the agent bot
                         success = start_agent_bot(agent_id, agent_token)
                         
+                        # Delete processing message
+                        try:
+                            context.bot.delete_message(chat_id=user_id, message_id=processing_msg.message_id)
+                        except:
+                            pass
+                        
                         if success:
+                            keyboard = [[InlineKeyboardButton("🤖 返回代理管理", callback_data="agent_manage")]]
                             context.bot.send_message(
                                 chat_id=user_id,
-                                text=f'✅ 代理 "{agent_name}" 已创建并启动成功！\n\n'
-                                     f'代理ID: {agent_id}\n'
-                                     f'状态: 运行中',
-                                parse_mode='HTML'
+                                text=f'✅ <b>代理创建成功！</b>\n\n'
+                                     f'📋 代理ID: <code>{agent_id}</code>\n'
+                                     f'🤖 名称: {agent_name}\n'
+                                     f'🟢 状态: 运行中\n\n'
+                                     f'<i>代理Bot已成功启动，可以开始接收订单。</i>',
+                                parse_mode='HTML',
+                                reply_markup=InlineKeyboardMarkup(keyboard)
                             )
                         else:
+                            keyboard = [[InlineKeyboardButton("🤖 返回代理管理", callback_data="agent_manage")]]
                             context.bot.send_message(
                                 chat_id=user_id,
-                                text=f'⚠️ 代理 "{agent_name}" 已保存，但启动失败。\n\n'
-                                     f'请检查Token是否有效，或稍后手动启动。',
-                                parse_mode='HTML'
+                                text=f'⚠️ <b>代理已保存，但启动失败</b>\n\n'
+                                     f'📋 代理ID: <code>{agent_id}</code>\n'
+                                     f'🤖 名称: {agent_name}\n'
+                                     f'🔴 状态: 已停止\n\n'
+                                     f'<b>可能原因：</b>\n'
+                                     f'• Token无效或已过期\n'
+                                     f'• Bot未设置为可访问\n'
+                                     f'• 网络连接问题\n\n'
+                                     f'<i>请在代理管理面板中重新启动，或检查Token后删除重建。</i>',
+                                parse_mode='HTML',
+                                reply_markup=InlineKeyboardMarkup(keyboard)
                             )
                     except Exception as e:
                         logging.error(f"Error creating agent: {e}")
+                        import traceback
+                        logging.error(traceback.format_exc())
+                        
+                        keyboard = [[InlineKeyboardButton("🤖 返回代理管理", callback_data="agent_manage")]]
                         context.bot.send_message(
                             chat_id=user_id,
-                            text=f'❌ 创建代理失败: {str(e)}',
-                            parse_mode='HTML'
+                            text=f'❌ <b>创建代理失败</b>\n\n'
+                                 f'错误信息:\n<code>{str(e)}</code>\n\n'
+                                 f'<i>请检查日志获取详细信息，或联系管理员。</i>',
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
                         )
                     
                     # Clear sign and context data

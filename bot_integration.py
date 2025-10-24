@@ -187,7 +187,7 @@ def stop_agent_bot(agent_id):
 
 
 def agent_manage(update, context):
-    """Show agent management panel."""
+    """Show agent management panel with full button support."""
     query = update.callback_query
     query.answer()
     
@@ -197,66 +197,99 @@ def agent_manage(update, context):
         query.edit_message_text("❌ 权限不足，仅管理员可用")
         return
     
-    agents_list = get_all_agents()
-    
-    text = "🤖 <b>代理管理</b>\n\n"
-    
-    if not agents_list:
-        text += "📭 暂无代理\n\n点击下方按钮添加新代理。"
-    else:
-        text += f"📊 代理总数: {len(agents_list)}\n\n"
+    try:
+        agents_list = get_all_agents()
+        running_count = len([a for a in agents_list if a.get('agent_id') in RUNNING_AGENTS])
         
-        for agent in agents_list:
-            agent_id = agent.get('agent_id', 'unknown')
-            name = agent.get('name', 'Unnamed')
-            status = agent.get('status', 'unknown')
-            
-            # Check if actually running
-            if agent_id in RUNNING_AGENTS:
-                status_emoji = "🟢"
-                status_text = "运行中"
-            elif status == 'running':
-                status_emoji = "🟡"
-                status_text = "启动中"
-            else:
-                status_emoji = "🔴"
-                status_text = "已停止"
-            
-            text += f"{status_emoji} <b>{name}</b>\n"
-            text += f"   ID: <code>{agent_id}</code>\n"
-            text += f"   状态: {status_text}\n\n"
-    
-    buttons = [
-        [
-            InlineKeyboardButton("➕ 新增代理", callback_data="agent_add"),
-            InlineKeyboardButton("🔄 刷新列表", callback_data="agent_manage")
-        ]
-    ]
-    
-    # Add toggle/delete buttons for each agent
-    for agent in agents_list:
-        agent_id = agent.get('agent_id')
-        name = agent.get('name', 'Unnamed')
+        text = "🤖 <b>代理管理</b>\n\n"
         
-        row = []
-        if agent_id in RUNNING_AGENTS:
-            row.append(InlineKeyboardButton(f"⏸ 停止 {name}", callback_data=f"agent_toggle {agent_id}"))
+        if not agents_list:
+            text += "📭 暂无代理\n\n"
+            text += "点击下方 <b>新增代理</b> 按钮开始创建第一个代理Bot。\n\n"
+            text += "<i>代理Bot可以分享你的商品库存并自动处理订单。</i>"
         else:
-            row.append(InlineKeyboardButton(f"▶️ 启动 {name}", callback_data=f"agent_toggle {agent_id}"))
+            text += f"📊 代理总数: <b>{len(agents_list)}</b>\n"
+            text += f"🟢 运行中: <b>{running_count}</b>\n"
+            text += f"🔴 已停止: <b>{len(agents_list) - running_count}</b>\n\n"
+            
+            text += "━━━━━━━━━━━━━━━\n\n"
+            
+            for idx, agent in enumerate(agents_list, 1):
+                agent_id = agent.get('agent_id', 'unknown')
+                name = agent.get('name', 'Unnamed')
+                status = agent.get('status', 'unknown')
+                
+                # Check if actually running
+                if agent_id in RUNNING_AGENTS:
+                    status_emoji = "🟢"
+                    status_text = "运行中"
+                elif status == 'running':
+                    status_emoji = "🟡"
+                    status_text = "启动中"
+                else:
+                    status_emoji = "🔴"
+                    status_text = "已停止"
+                
+                text += f"{idx}. {status_emoji} <b>{name}</b>\n"
+                text += f"   📋 ID: <code>{agent_id}</code>\n"
+                text += f"   📍 状态: {status_text}\n\n"
         
-        row.append(InlineKeyboardButton(f"🗑 删除", callback_data=f"agent_delete {agent_id}"))
-        buttons.append(row)
-    
-    buttons.append([InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")])
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+        buttons = [
+            [
+                InlineKeyboardButton("➕ 新增代理", callback_data="agent_new"),
+                InlineKeyboardButton("🔄 刷新列表", callback_data="agent_refresh")
+            ]
+        ]
+        
+        # Add toggle/delete buttons for each agent (using short callback_data)
+        for agent in agents_list:
+            agent_id = agent.get('agent_id')
+            name = agent.get('name', 'Unnamed')
+            
+            # Truncate name if too long to keep callback_data under 64 bytes
+            display_name = name[:10] + "..." if len(name) > 10 else name
+            
+            row = []
+            if agent_id in RUNNING_AGENTS:
+                row.append(InlineKeyboardButton(
+                    f"⏸ 停止 {display_name}", 
+                    callback_data=f"agent_tgl {agent_id}"
+                ))
+            else:
+                row.append(InlineKeyboardButton(
+                    f"▶️ 启动 {display_name}", 
+                    callback_data=f"agent_tgl {agent_id}"
+                ))
+            
+            row.append(InlineKeyboardButton(
+                f"🗑 删除", 
+                callback_data=f"agent_del {agent_id}"
+            ))
+            buttons.append(row)
+        
+        buttons.append([InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")])
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in agent_manage: {e}")
+        query.edit_message_text(
+            f"❌ 加载代理管理面板时出错\n\n错误信息: {str(e)}\n\n"
+            f"请联系管理员检查日志。"
+        )
 
 
-def agent_add(update, context):
+def agent_refresh(update, context):
+    """Refresh the agent management panel (same as agent_manage)."""
+    # Simply call agent_manage to refresh
+    agent_manage(update, context)
+
+
+def agent_new(update, context):
     """Start the process of adding a new agent."""
     query = update.callback_query
     query.answer()
@@ -272,16 +305,82 @@ def agent_add(update, context):
     # Set sign to trigger token input
     user.update_one({'user_id': user_id}, {"$set": {'sign': 'agent_add_token'}})
     
+    text = (
+        "🤖 <b>创建新代理 - 步骤 1/2</b>\n\n"
+        "📝 请发送代理Bot的Token\n\n"
+        "<b>如何获取Token：</b>\n"
+        "1. 打开 @BotFather\n"
+        "2. 发送 /newbot 创建新Bot\n"
+        "3. 按提示设置Bot名称和用户名\n"
+        "4. 复制收到的Token并发送到这里\n\n"
+        "<i>Token格式示例：1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</i>"
+    )
+    
+    keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="agent_manage")]]
+    
     query.edit_message_text(
-        text='🤖 <b>添加新代理</b>\n\n'
-             '请发送代理Bot的Token:\n'
-             '(从 @BotFather 获取)',
-        parse_mode='HTML'
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
+# Keep agent_add as an alias for backward compatibility
+def agent_add(update, context):
+    """Alias for agent_new for backward compatibility."""
+    agent_new(update, context)
+
+
+def agent_tgl(update, context):
+    """Toggle agent on/off (short callback version)."""
+    query = update.callback_query
+    agent_id = query.data.replace('agent_tgl ', '')
+    
+    # Check admin permission
+    from bot import get_admin_ids
+    if query.from_user.id not in get_admin_ids():
+        query.answer("❌ 权限不足", show_alert=True)
+        return
+    
+    try:
+        # Find agent
+        agents_list = get_all_agents()
+        agent = next((a for a in agents_list if a.get('agent_id') == agent_id), None)
+        
+        if not agent:
+            query.answer("❌ 代理不存在", show_alert=True)
+            return
+        
+        if agent_id in RUNNING_AGENTS:
+            # Stop the agent
+            success = stop_agent_bot(agent_id)
+            if success:
+                query.answer("✅ 代理已停止", show_alert=True)
+            else:
+                query.answer("⚠️ 停止失败", show_alert=True)
+        else:
+            # Start the agent
+            token = agent.get('token')
+            if not token:
+                query.answer("❌ 代理Token缺失", show_alert=True)
+                return
+            
+            success = start_agent_bot(agent_id, token)
+            if success:
+                query.answer("✅ 代理启动中...", show_alert=True)
+            else:
+                query.answer("❌ 启动失败，请检查Token", show_alert=True)
+        
+        # Refresh the panel
+        agent_manage(update, context)
+        
+    except Exception as e:
+        logging.error(f"Error in agent_tgl: {e}")
+        query.answer(f"❌ 操作失败: {str(e)}", show_alert=True)
+
+
 def agent_toggle(update, context):
-    """Toggle agent on/off."""
+    """Toggle agent on/off (legacy long callback version)."""
     query = update.callback_query
     agent_id = query.data.replace('agent_toggle ', '')
     
@@ -319,8 +418,47 @@ def agent_toggle(update, context):
     agent_manage(update, context)
 
 
+def agent_del(update, context):
+    """Delete an agent (short callback version)."""
+    query = update.callback_query
+    agent_id = query.data.replace('agent_del ', '')
+    
+    # Check admin permission
+    from bot import get_admin_ids
+    if query.from_user.id not in get_admin_ids():
+        query.answer("❌ 权限不足", show_alert=True)
+        return
+    
+    try:
+        # Find agent for confirmation message
+        agents_list = get_all_agents()
+        agent = next((a for a in agents_list if a.get('agent_id') == agent_id), None)
+        
+        if not agent:
+            query.answer("❌ 代理不存在", show_alert=True)
+            return
+        
+        agent_name = agent.get('name', 'Unnamed')
+        
+        # Stop if running
+        if agent_id in RUNNING_AGENTS:
+            stop_agent_bot(agent_id)
+        
+        # Delete from storage
+        delete_agent(agent_id)
+        
+        query.answer(f"✅ 代理 '{agent_name}' 已删除", show_alert=True)
+        
+        # Refresh the panel
+        agent_manage(update, context)
+        
+    except Exception as e:
+        logging.error(f"Error in agent_del: {e}")
+        query.answer(f"❌ 删除失败: {str(e)}", show_alert=True)
+
+
 def agent_delete(update, context):
-    """Delete an agent."""
+    """Delete an agent (legacy long callback version)."""
     query = update.callback_query
     agent_id = query.data.replace('agent_delete ', '')
     
@@ -375,13 +513,25 @@ def integrate_agent_system(dispatcher, job_queue):
         logging.info("Initializing Button-Based Agent Management System")
         logging.info("="*60)
         
-        # Register agent management callbacks
+        # Register agent management callbacks (short versions for button flow)
         dispatcher.add_handler(CallbackQueryHandler(agent_manage, pattern='^agent_manage$'))
+        dispatcher.add_handler(CallbackQueryHandler(agent_refresh, pattern='^agent_refresh$'))
+        dispatcher.add_handler(CallbackQueryHandler(agent_new, pattern='^agent_new$'))
+        dispatcher.add_handler(CallbackQueryHandler(agent_tgl, pattern='^agent_tgl '))
+        dispatcher.add_handler(CallbackQueryHandler(agent_del, pattern='^agent_del '))
+        
+        # Register legacy long callback versions for backward compatibility
         dispatcher.add_handler(CallbackQueryHandler(agent_add, pattern='^agent_add$'))
         dispatcher.add_handler(CallbackQueryHandler(agent_toggle, pattern='^agent_toggle '))
         dispatcher.add_handler(CallbackQueryHandler(agent_delete, pattern='^agent_delete '))
         
-        logging.info("✅ Agent management callbacks registered")
+        logging.info("✅ Agent management callbacks registered:")
+        logging.info("   - agent_manage (main panel)")
+        logging.info("   - agent_refresh (refresh list)")
+        logging.info("   - agent_new (add new agent)")
+        logging.info("   - agent_tgl (toggle agent)")
+        logging.info("   - agent_del (delete agent)")
+        logging.info("   - Legacy handlers (agent_add, agent_toggle, agent_delete)")
         
         # Discover and start existing agents
         discover_and_start_agents()
@@ -392,4 +542,6 @@ def integrate_agent_system(dispatcher, job_queue):
         
     except Exception as e:
         logging.error(f"❌ Failed to initialize agent system: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
