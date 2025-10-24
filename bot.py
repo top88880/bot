@@ -182,6 +182,51 @@ def calc_display_price_usdt(base_price_usdt: Decimal, context: CallbackContext) 
     final_price = base_price_usdt + markup
     return final_price.quantize(Decimal('0.01'))
 
+def get_agent_links(context: CallbackContext) -> dict:
+    """Get agent-specific links configuration.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Dict with keys: support_link, channel_link, announcement_link, extra_links
+        Returns None for each if not set or not an agent bot.
+    """
+    agent_id = get_current_agent_id(context)
+    if not agent_id:
+        return {
+            'support_link': None,
+            'channel_link': None,
+            'announcement_link': None,
+            'extra_links': []
+        }
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            return {
+                'support_link': None,
+                'channel_link': None,
+                'announcement_link': None,
+                'extra_links': []
+            }
+        
+        links = agent.get('links', {})
+        return {
+            'support_link': links.get('support_link'),
+            'channel_link': links.get('channel_link'),
+            'announcement_link': links.get('announcement_link'),
+            'extra_links': links.get('extra_links', [])
+        }
+    except Exception as e:
+        logging.error(f"Error getting agent links: {e}")
+        return {
+            'support_link': None,
+            'channel_link': None,
+            'announcement_link': None,
+            'extra_links': []
+        }
+
 def record_agent_profit(context: CallbackContext, order_doc: dict):
     """Record profit for agent after successful order completion.
     
@@ -580,7 +625,9 @@ def inline_query(update: Update, context: CallbackContext):
             return
 
         pname = product.get('projectname', '未知商品')
-        price = float(product.get('money', 0))
+        base_price = Decimal(str(product.get('money', 0)))
+        # Apply agent markup
+        price = float(calc_display_price_usdt(base_price, context))
         stock = hb.count_documents({'nowuid': nowuid, 'state': 0})
         desc = product.get('desc', '暂无商品说明')
 
@@ -6164,12 +6211,16 @@ def catejflsp(update: Update, context: CallbackContext):
         if money <= 0:
             continue
 
+        # Apply agent markup
+        base_price = Decimal(str(money))
+        display_price = float(calc_display_price_usdt(base_price, context))
+
         if lang != 'zh':
             projectname = get_fy(projectname)
 
         keyboard.append([
             InlineKeyboardButton(
-                f'{projectname} {money}U [库存: {hsl}个]',
+                f'{projectname} {display_price:.2f}U [库存: {hsl}个]',
                 callback_data=f'gmsp {nowuid}:{hsl}'
             )
         ])
@@ -6233,6 +6284,10 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         error_msg = "❌ 该商品暂未设置价格，请联系管理员！" if lang == 'zh' else "❌ This product has no price set, please contact admin!"
         return send_func(error_msg)
 
+    # ✅ Apply agent markup to price
+    base_price = Decimal(str(money))
+    display_price = calc_display_price_usdt(base_price, context)
+
     # ✅ 实时库存查询
     stock = hb.count_documents({'nowuid': nowuid, 'state': 0})
 
@@ -6241,7 +6296,7 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         fstext = f'''
 <b>✅您正在购买:  {projectname}
 
-💰 价格： {money:.2f} USDT
+💰 价格： {display_price:.2f} USDT
 
 🏢 库存： {stock} 份
 
@@ -6261,7 +6316,7 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         fstext = f'''
 <b>✅You are buying: {projectname}
 
-💰 Price: {money:.2f} USDT
+💰 Price: {display_price:.2f} USDT
 
 🏢 Inventory: {stock} items
 
@@ -7850,7 +7905,11 @@ def textkeyboard(update: Update, context: CallbackContext):
                     kc = len(list(hb.find({'nowuid': nowuid, 'state': 0})))
                     if is_number(text):
                         gmsl = int(text)
-                        zxymoney = standard_num(gmsl * money)
+                        # Apply agent markup to unit price
+                        base_price = Decimal(str(money))
+                        display_price = calc_display_price_usdt(base_price, context)
+                        # Calculate total with markup
+                        zxymoney = standard_num(gmsl * float(display_price))
                         zxymoney = float(zxymoney) if str((zxymoney)).count('.') > 0 else int(standard_num(zxymoney))
                         if kc < gmsl:
                             if lang == 'zh':
