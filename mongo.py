@@ -110,6 +110,11 @@ class DatabaseManager:
         self.hongbao = self.bot_db['hongbao']
         self.qb = self.bot_db['qb']
         self.zhuanz = self.bot_db['zhuanz']
+        
+        # New collections for multi-tenant agent architecture
+        self.agents = self.bot_db['agents']
+        self.agent_ledger = self.bot_db['agent_ledger']
+        self.agent_withdrawals = self.bot_db['agent_withdrawals']
     
     def close(self):
         """关闭数据库连接"""
@@ -141,6 +146,11 @@ sftw = db_manager.sftw
 hongbao = db_manager.hongbao
 qb = db_manager.qb
 zhuanz = db_manager.zhuanz
+
+# New collections for multi-tenant agent architecture
+agents = db_manager.agents
+agent_ledger = db_manager.agent_ledger
+agent_withdrawals = db_manager.agent_withdrawals
 
 # ✅ 库存通知管理优化
 class StockNotificationManager:
