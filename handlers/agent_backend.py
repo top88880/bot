@@ -12,12 +12,14 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 
 from mongo import agents, agent_withdrawals
+from bot import get_admin_ids
 
 
 def agent_command(update: Update, context: CallbackContext):
     """Handle /agent command - show agent backend panel.
     
     Only works in child agent bots and only for the owner_user_id.
+    Allows first-time binding if owner_user_id is None or an admin ID.
     """
     user_id = update.effective_user.id
     
@@ -36,7 +38,15 @@ def agent_command(update: Update, context: CallbackContext):
         
         # Check if user is the owner
         owner_user_id = agent.get('owner_user_id')
-        if not owner_user_id or user_id != owner_user_id:
+        admin_ids = get_admin_ids()
+        
+        # Allow binding if owner is None or is an admin (one-time claim)
+        if owner_user_id is None or owner_user_id in admin_ids:
+            # Show bind button
+            show_bind_panel(update, context, agent, owner_user_id, is_callback=False)
+            return
+        
+        if user_id != owner_user_id:
             update.message.reply_text("❌ This command is only available to the agent owner.")
             return
         
@@ -46,6 +56,100 @@ def agent_command(update: Update, context: CallbackContext):
     except Exception as e:
         logging.error(f"Error in agent_command: {e}")
         update.message.reply_text(f"❌ Error loading agent panel: {e}")
+
+
+def show_bind_panel(update: Update, context: CallbackContext, agent: dict, current_owner_id, is_callback: bool = False):
+    """Show panel with bind button for claiming ownership."""
+    admin_ids = get_admin_ids()
+    
+    if current_owner_id is None:
+        text = """<b>🤖 代理后台 - 未绑定</b>
+
+此代理机器人尚未绑定拥有者。
+
+作为代理运营者，您需要先绑定为拥有者才能访问代理后台。
+
+点击下方按钮绑定您的账号为此代理的拥有者。"""
+    elif current_owner_id in admin_ids:
+        text = """<b>🤖 代理后台 - 需要重新绑定</b>
+
+此代理机器人当前绑定的是管理员账号。
+
+作为实际的代理运营者，您可以一次性地将拥有者身份转移到您的账号。
+
+⚠️ <b>注意：</b>此操作只能执行一次，请确认您是该代理的实际运营者。"""
+    else:
+        text = "❌ 权限错误"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔐 绑定为拥有者", callback_data="agent_claim_owner")],
+        [InlineKeyboardButton("❌ 取消", callback_data=f"close {update.effective_user.id}")]
+    ]
+    
+    if is_callback:
+        update.callback_query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        update.message.reply_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+def agent_claim_owner_callback(update: Update, context: CallbackContext):
+    """Handle owner claim button press."""
+    query = update.callback_query
+    query.answer()
+    
+    user_id = query.from_user.id
+    agent_id = context.bot_data.get('agent_id')
+    
+    if not agent_id:
+        query.edit_message_text("❌ Agent context not found.")
+        return
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            query.edit_message_text("❌ Agent not found.")
+            return
+        
+        owner_user_id = agent.get('owner_user_id')
+        admin_ids = get_admin_ids()
+        
+        # Verify this is allowed (None or admin)
+        if owner_user_id is not None and owner_user_id not in admin_ids:
+            query.edit_message_text("❌ This agent already has a non-admin owner.")
+            return
+        
+        # Bind the user as owner
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'owner_user_id': user_id,
+                    'updated_at': datetime.now()
+                }
+            }
+        )
+        
+        logging.info(f"Agent {agent_id} owner bound to user {user_id}")
+        
+        # Show success and then the agent panel
+        query.edit_message_text(
+            f"✅ <b>绑定成功！</b>\n\n"
+            f"您已成功绑定为此代理的拥有者。\n\n"
+            f"请再次使用 /agent 命令打开代理后台。",
+            parse_mode='HTML'
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in agent_claim_owner_callback: {e}")
+        query.edit_message_text(f"❌ 绑定失败: {e}")
 
 
 def show_agent_panel(update: Update, context: CallbackContext, agent: dict = None, is_callback: bool = False):
@@ -70,11 +174,13 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     profit_frozen = agent.get('profit_frozen_usdt', '0')
     total_paid = agent.get('total_paid_usdt', '0')
     
-    links = agent.get('links', {})
-    support_link = links.get('support_link', '未设置')
-    channel_link = links.get('channel_link', '未设置')
-    announcement_link = links.get('announcement_link', '未设置')
-    extra_links = links.get('extra_links', [])
+    # Get settings (new structure)
+    settings = agent.get('settings', {})
+    customer_service = settings.get('customer_service', '未设置')
+    official_channel = settings.get('official_channel', '未设置')
+    restock_group = settings.get('restock_group', '未设置')
+    tutorial_link = settings.get('tutorial_link', '未设置')
+    notify_channel_id = settings.get('notify_channel_id', '未设置')
     
     text = f"""<b>🤖 代理后台 - {name}</b>
 
@@ -85,10 +191,11 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
 • 已提现总额: {total_paid} USDT
 
 <b>🔗 联系方式</b>
-• 客服链接: {support_link}
-• 频道链接: {channel_link}
-• 公告链接: {announcement_link}
-• 自定义按钮: {len(extra_links)} 个
+• 客服: {customer_service}
+• 官方频道: {official_channel}
+• 补货通知群: {restock_group}
+• 教程链接: {tutorial_link}
+• 通知频道ID: {notify_channel_id}
 
 <i>提示: 这些设置仅影响您的代理机器人，不会影响主机器人。</i>"""
     
@@ -99,12 +206,16 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
             InlineKeyboardButton("💸 发起提现", callback_data="agent_withdraw_init")
         ],
         [
-            InlineKeyboardButton("📞 设置客服", callback_data="agent_set_support"),
-            InlineKeyboardButton("📢 设置频道", callback_data="agent_set_channel")
+            InlineKeyboardButton("📞 设置客服", callback_data="agent_cfg_cs"),
+            InlineKeyboardButton("📢 设置官方频道", callback_data="agent_cfg_official")
         ],
         [
-            InlineKeyboardButton("📣 设置公告", callback_data="agent_set_announcement"),
-            InlineKeyboardButton("🔘 管理按钮", callback_data="agent_manage_buttons")
+            InlineKeyboardButton("📣 设置补货通知群", callback_data="agent_cfg_restock"),
+            InlineKeyboardButton("📖 设置教程链接", callback_data="agent_cfg_tutorial")
+        ],
+        [
+            InlineKeyboardButton("🔔 设置通知频道ID", callback_data="agent_cfg_notify"),
+            InlineKeyboardButton("🔘 管理链接按钮", callback_data="agent_links_btns")
         ],
         [InlineKeyboardButton("❌ 关闭", callback_data=f"close {update.effective_user.id}")]
     ]
@@ -138,7 +249,7 @@ def agent_panel_callback(update: Update, context: CallbackContext):
 
 
 def agent_set_markup_callback(update: Update, context: CallbackContext):
-    """Initiate markup setting flow."""
+    """Initiate markup setting flow with preset buttons."""
     query = update.callback_query
     query.answer()
     
@@ -147,27 +258,85 @@ def agent_set_markup_callback(update: Update, context: CallbackContext):
         query.edit_message_text("❌ Not an agent bot.")
         return
     
-    # Set state
+    # Get current markup
+    agent = agents.find_one({'agent_id': agent_id})
+    current_markup = agent.get('markup_usdt', '0') if agent else '0'
+    
+    text = f"""<b>💰 设置差价</b>
+
+当前差价: <b>{current_markup} USDT/件</b>
+
+您可以选择快捷设置，或发送自定义金额:
+
+<b>快捷选项:</b>
+• +0.01 USDT
+• +0.05 USDT
+• +0.10 USDT
+
+<b>自定义设置:</b>
+发送任意 ≥ 0 的USDT金额
+
+示例: <code>0.08</code> 或 <code>1.5</code>"""
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("+0.01", callback_data="agent_markup_preset_0.01"),
+            InlineKeyboardButton("+0.05", callback_data="agent_markup_preset_0.05"),
+            InlineKeyboardButton("+0.10", callback_data="agent_markup_preset_0.10")
+        ],
+        [InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]
+    ]
+    
+    # Set state for custom input
     context.user_data['agent_backend_state'] = 'awaiting_markup'
-    
-    text = """<b>💰 设置差价</b>
-
-请发送您想要设置的每件商品差价（单位：USDT）
-
-示例：
-• 发送 <code>0.05</code> 表示每件商品加价 0.05 USDT
-• 发送 <code>1</code> 表示每件商品加价 1 USDT
-• 发送 <code>0</code> 表示不加价
-
-差价必须 ≥ 0"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
     
     query.edit_message_text(
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+
+def agent_markup_preset_callback(update: Update, context: CallbackContext):
+    """Handle preset markup button press."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Extract value from callback data (e.g., "agent_markup_preset_0.05" -> "0.05")
+    value_str = query.data.replace('agent_markup_preset_', '')
+    
+    try:
+        markup = Decimal(value_str)
+        
+        # Update agent markup with 8 decimal precision
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'markup_usdt': str(markup.quantize(Decimal('0.00000001'))),
+                    'updated_at': datetime.now()
+                }
+            }
+        )
+        
+        # Clear state
+        context.user_data.pop('agent_backend_state', None)
+        
+        query.edit_message_text(
+            f"✅ 差价设置成功！\n\n"
+            f"新差价: <b>{markup} USDT/件</b>\n\n"
+            f"此后您的机器人销售商品时，每件将加价 {markup} USDT，利润自动累积到您的账户。",
+            parse_mode='HTML'
+        )
+        
+    except Exception as e:
+        logging.error(f"Error setting preset markup: {e}")
+        query.edit_message_text(f"❌ 设置失败: {e}")
 
 
 def agent_withdraw_init_callback(update: Update, context: CallbackContext):
@@ -219,7 +388,7 @@ def agent_withdraw_init_callback(update: Update, context: CallbackContext):
 
 
 def agent_set_link_callback(update: Update, context: CallbackContext):
-    """Initiate link setting flow (support/channel/announcement)."""
+    """DEPRECATED: Initiate link setting flow (support/channel/announcement)."""
     query = update.callback_query
     query.answer()
     
@@ -260,8 +429,235 @@ def agent_set_link_callback(update: Update, context: CallbackContext):
     )
 
 
+def agent_cfg_cs_callback(update: Update, context: CallbackContext):
+    """Initiate customer service setting flow."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Set state
+    context.user_data['agent_backend_state'] = 'awaiting_cs_input'
+    
+    text = """<b>📞 设置客服</b>
+
+请发送客服联系方式
+
+支持的格式：
+• 单个客服: <code>@customer_service</code>
+• 多个客服: <code>@cs1 @cs2 @cs3</code> (用空格分隔)
+• 客服链接: <code>https://t.me/customer_service</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_cfg_official_callback(update: Update, context: CallbackContext):
+    """Initiate official channel setting flow."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Set state
+    context.user_data['agent_backend_state'] = 'awaiting_official_input'
+    
+    text = """<b>📢 设置官方频道</b>
+
+请发送官方频道链接
+
+支持的格式：
+• 频道用户名: <code>@yourchannel</code>
+• 频道链接: <code>https://t.me/yourchannel</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_cfg_restock_callback(update: Update, context: CallbackContext):
+    """Initiate restock group setting flow."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Set state
+    context.user_data['agent_backend_state'] = 'awaiting_restock_input'
+    
+    text = """<b>📣 设置补货通知群</b>
+
+请发送补货通知群链接
+
+支持的格式：
+• 群组用户名: <code>@yourgroup</code>
+• 群组链接: <code>https://t.me/yourgroup</code>
+• 群组邀请链接: <code>https://t.me/+xxxxx</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_cfg_tutorial_callback(update: Update, context: CallbackContext):
+    """Initiate tutorial link setting flow."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Set state
+    context.user_data['agent_backend_state'] = 'awaiting_tutorial_input'
+    
+    text = """<b>📖 设置教程链接</b>
+
+请发送教程页面链接
+
+<b>要求:</b>
+• 必须是有效的 URL (http:// 或 https://)
+• 可以是任何网页链接
+
+示例:
+• <code>https://example.com/tutorial</code>
+• <code>https://docs.google.com/document/xxx</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_cfg_notify_callback(update: Update, context: CallbackContext):
+    """Initiate notify channel ID setting flow."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    # Set state
+    context.user_data['agent_backend_state'] = 'awaiting_notify_input'
+    
+    text = """<b>🔔 设置通知频道ID</b>
+
+请发送通知频道的数字ID
+
+<b>如何获取频道ID:</b>
+1. 将机器人添加到您的频道
+2. 在频道发送一条消息
+3. 使用 @username_to_id_bot 等工具获取频道ID
+
+<b>格式要求:</b>
+• 必须是数字 (通常以 -100 开头)
+• 示例: <code>-100123456789</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def agent_links_btns_callback(update: Update, context: CallbackContext):
+    """Show custom link buttons management panel."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    if not agent_id:
+        query.edit_message_text("❌ Not an agent bot.")
+        return
+    
+    agent = agents.find_one({'agent_id': agent_id})
+    if not agent:
+        query.edit_message_text("❌ Agent not found.")
+        return
+    
+    # Get custom buttons from settings.extra_links
+    settings = agent.get('settings', {})
+    extra_links = settings.get('extra_links', [])
+    
+    text = "<b>🔘 管理链接按钮</b>\n\n"
+    
+    if not extra_links:
+        text += "暂无自定义按钮\n\n"
+    else:
+        text += "当前按钮:\n"
+        for idx, link in enumerate(extra_links, 1):
+            text += f"{idx}. {link.get('title', 'Untitled')}: {link.get('url', 'No URL')}\n"
+        text += "\n"
+    
+    text += f"您可以添加最多 5 个自定义按钮\n"
+    text += f"当前: {len(extra_links)}/5"
+    
+    keyboard = []
+    
+    if len(extra_links) < 5:
+        keyboard.append([InlineKeyboardButton("➕ 添加按钮", callback_data="agent_add_button")])
+    
+    if extra_links:
+        keyboard.append([InlineKeyboardButton("🗑 删除按钮", callback_data="agent_delete_button")])
+    
+    keyboard.append([InlineKeyboardButton("⬅️ 返回", callback_data="agent_panel")])
+    keyboard.append([InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")])
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
 def agent_manage_buttons_callback(update: Update, context: CallbackContext):
-    """Show custom button management panel."""
+    """DEPRECATED: Show custom button management panel."""
+    # Redirect to new function
+    agent_links_btns_callback(update, context)
+
+
+def agent_manage_buttons_callback_old(update: Update, context: CallbackContext):
+    """DEPRECATED OLD VERSION: Show custom button management panel."""
     query = update.callback_query
     query.answer()
     
@@ -329,12 +725,16 @@ def agent_text_input_handler(update: Update, context: CallbackContext):
             handle_withdraw_amount_input(update, context, agent_id, text)
         elif state == 'awaiting_withdraw_address':
             handle_withdraw_address_input(update, context, agent_id, text)
-        elif state == 'awaiting_support_link':
-            handle_link_input(update, context, agent_id, 'support_link', text, '客服')
-        elif state == 'awaiting_channel_link':
-            handle_link_input(update, context, agent_id, 'channel_link', text, '频道')
-        elif state == 'awaiting_announcement_link':
-            handle_link_input(update, context, agent_id, 'announcement_link', text, '公告')
+        elif state == 'awaiting_cs_input':
+            handle_setting_input(update, context, agent_id, 'customer_service', text, '客服')
+        elif state == 'awaiting_official_input':
+            handle_setting_input(update, context, agent_id, 'official_channel', text, '官方频道')
+        elif state == 'awaiting_restock_input':
+            handle_setting_input(update, context, agent_id, 'restock_group', text, '补货通知群')
+        elif state == 'awaiting_tutorial_input':
+            handle_tutorial_input(update, context, agent_id, text)
+        elif state == 'awaiting_notify_input':
+            handle_notify_channel_input(update, context, agent_id, text)
         elif state == 'awaiting_button_title':
             context.user_data['button_title'] = text
             context.user_data['agent_backend_state'] = 'awaiting_button_url'
@@ -361,12 +761,12 @@ def handle_markup_input(update: Update, context: CallbackContext, agent_id: str,
             update.message.reply_text("❌ 差价不能为负数，请重新输入")
             return
         
-        # Update agent markup
+        # Update agent markup with 8 decimal precision
         agents.update_one(
             {'agent_id': agent_id},
             {
                 '$set': {
-                    'markup_usdt': str(markup.quantize(Decimal('0.01'))),
+                    'markup_usdt': str(markup.quantize(Decimal('0.00000001'))),
                     'updated_at': datetime.now()
                 }
             }
@@ -463,8 +863,8 @@ def handle_withdraw_address_input(update: Update, context: CallbackContext, agen
             {'agent_id': agent_id},
             {
                 '$set': {
-                    'profit_available_usdt': str(new_available.quantize(Decimal('0.01'))),
-                    'profit_frozen_usdt': str(new_frozen.quantize(Decimal('0.01'))),
+                    'profit_available_usdt': str(new_available.quantize(Decimal('0.00000001'))),
+                    'profit_frozen_usdt': str(new_frozen.quantize(Decimal('0.00000001'))),
                     'updated_at': datetime.now()
                 }
             }
@@ -492,8 +892,142 @@ def handle_withdraw_address_input(update: Update, context: CallbackContext, agen
         context.user_data.pop('agent_backend_state', None)
 
 
+def handle_setting_input(update: Update, context: CallbackContext, agent_id: str, field: str, text: str, name: str):
+    """Handle general setting input for customer_service/official_channel/restock_group."""
+    if text == '清除':
+        # Clear the setting
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    f'settings.{field}': None,
+                    'updated_at': datetime.now()
+                },
+                '$unset': {f'settings.{field}': ""}
+            }
+        )
+        
+        context.user_data.pop('agent_backend_state', None)
+        update.message.reply_text(f"✅ {name}已清除")
+        return
+    
+    # Simple validation - allow @username or URLs
+    if not (text.startswith('@') or text.startswith('http://') or text.startswith('https://')):
+        update.message.reply_text(
+            "❌ 格式错误\n\n"
+            "请发送以下格式之一:\n"
+            "• @username (可以用空格分隔多个)\n"
+            "• https://t.me/username\n"
+            "• https://example.com"
+        )
+        return
+    
+    # Update setting
+    agents.update_one(
+        {'agent_id': agent_id},
+        {
+            '$set': {
+                f'settings.{field}': text,
+                'updated_at': datetime.now()
+            }
+        }
+    )
+    
+    context.user_data.pop('agent_backend_state', None)
+    update.message.reply_text(f"✅ {name}设置成功！\n\n<b>新设置:</b> {text}", parse_mode='HTML')
+
+
+def handle_tutorial_input(update: Update, context: CallbackContext, agent_id: str, text: str):
+    """Handle tutorial link input with URL validation."""
+    if text == '清除':
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'settings.tutorial_link': None,
+                    'updated_at': datetime.now()
+                },
+                '$unset': {'settings.tutorial_link': ""}
+            }
+        )
+        
+        context.user_data.pop('agent_backend_state', None)
+        update.message.reply_text("✅ 教程链接已清除")
+        return
+    
+    # Validate URL
+    if not (text.startswith('http://') or text.startswith('https://')):
+        update.message.reply_text(
+            "❌ 教程链接必须是有效的URL\n\n"
+            "请发送以 http:// 或 https:// 开头的链接\n\n"
+            "示例: <code>https://example.com/tutorial</code>",
+            parse_mode='HTML'
+        )
+        return
+    
+    # Update setting
+    agents.update_one(
+        {'agent_id': agent_id},
+        {
+            '$set': {
+                'settings.tutorial_link': text,
+                'updated_at': datetime.now()
+            }
+        }
+    )
+    
+    context.user_data.pop('agent_backend_state', None)
+    update.message.reply_text(f"✅ 教程链接设置成功！\n\n<b>新链接:</b> {text}", parse_mode='HTML')
+
+
+def handle_notify_channel_input(update: Update, context: CallbackContext, agent_id: str, text: str):
+    """Handle notify channel ID input with numeric validation."""
+    if text == '清除':
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'settings.notify_channel_id': None,
+                    'updated_at': datetime.now()
+                },
+                '$unset': {'settings.notify_channel_id': ""}
+            }
+        )
+        
+        context.user_data.pop('agent_backend_state', None)
+        update.message.reply_text("✅ 通知频道ID已清除")
+        return
+    
+    # Validate numeric ID (should start with - for channels)
+    text = text.strip()
+    if not text.lstrip('-').isdigit():
+        update.message.reply_text(
+            "❌ 通知频道ID必须是数字\n\n"
+            "请发送有效的频道ID\n\n"
+            "示例: <code>-100123456789</code>",
+            parse_mode='HTML'
+        )
+        return
+    
+    # Update setting
+    agents.update_one(
+        {'agent_id': agent_id},
+        {
+            '$set': {
+                'settings.notify_channel_id': text,
+                'updated_at': datetime.now()
+            }
+        }
+    )
+    
+    context.user_data.pop('agent_backend_state', None)
+    update.message.reply_text(f"✅ 通知频道ID设置成功！\n\n<b>新ID:</b> <code>{text}</code>", parse_mode='HTML')
+
+
 def handle_link_input(update: Update, context: CallbackContext, agent_id: str, field: str, text: str, name: str):
-    """Handle link input for support/channel/announcement."""
+    """DEPRECATED: Handle link input for support/channel/announcement."""
+    # This function is kept for backward compatibility but should not be called
+    # Use handle_setting_input, handle_tutorial_input, or handle_notify_channel_input instead
     if text == '清除':
         # Clear the link
         agents.update_one(
@@ -546,8 +1080,8 @@ def handle_button_add(update: Update, context: CallbackContext, agent_id: str, u
         return
     
     agent = agents.find_one({'agent_id': agent_id})
-    links = agent.get('links', {})
-    extra_links = links.get('extra_links', [])
+    settings = agent.get('settings', {})
+    extra_links = settings.get('extra_links', [])
     
     if len(extra_links) >= 5:
         update.message.reply_text("❌ 最多只能添加 5 个自定义按钮")
@@ -562,7 +1096,7 @@ def handle_button_add(update: Update, context: CallbackContext, agent_id: str, u
         {'agent_id': agent_id},
         {
             '$set': {
-                'links.extra_links': extra_links,
+                'settings.extra_links': extra_links,
                 'updated_at': datetime.now()
             }
         }
@@ -585,8 +1119,8 @@ def handle_button_delete(update: Update, context: CallbackContext, agent_id: str
         index = int(text) - 1  # Convert to 0-based index
         
         agent = agents.find_one({'agent_id': agent_id})
-        links = agent.get('links', {})
-        extra_links = links.get('extra_links', [])
+        settings = agent.get('settings', {})
+        extra_links = settings.get('extra_links', [])
         
         if index < 0 or index >= len(extra_links):
             update.message.reply_text(f"❌ 无效的按钮编号，请输入 1-{len(extra_links)} 之间的数字")
@@ -599,7 +1133,7 @@ def handle_button_delete(update: Update, context: CallbackContext, agent_id: str
             {'agent_id': agent_id},
             {
                 '$set': {
-                    'links.extra_links': extra_links,
+                    'settings.extra_links': extra_links,
                     'updated_at': datetime.now()
                 }
             }
@@ -643,8 +1177,8 @@ def agent_delete_button_callback(update: Update, context: CallbackContext):
         return
     
     agent = agents.find_one({'agent_id': agent_id})
-    links = agent.get('links', {})
-    extra_links = links.get('extra_links', [])
+    settings = agent.get('settings', {})
+    extra_links = settings.get('extra_links', [])
     
     if not extra_links:
         query.edit_message_text("❌ 没有可删除的按钮")
