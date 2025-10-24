@@ -191,6 +191,9 @@ def agent_manage(update, context):
     query = update.callback_query
     query.answer()
     
+    # Debug logging
+    logging.info(f"[Agent] agent_manage clicked by user {query.from_user.id}")
+    
     # Check admin permission
     from bot import get_admin_ids
     if query.from_user.id not in get_admin_ids():
@@ -514,16 +517,16 @@ def integrate_agent_system(dispatcher, job_queue):
         logging.info("="*60)
         
         # Register agent management callbacks (short versions for button flow)
-        dispatcher.add_handler(CallbackQueryHandler(agent_manage, pattern='^agent_manage$'))
-        dispatcher.add_handler(CallbackQueryHandler(agent_refresh, pattern='^agent_refresh$'))
-        dispatcher.add_handler(CallbackQueryHandler(agent_new, pattern='^agent_new$'))
-        dispatcher.add_handler(CallbackQueryHandler(agent_tgl, pattern='^agent_tgl '))
-        dispatcher.add_handler(CallbackQueryHandler(agent_del, pattern='^agent_del '))
+        dispatcher.add_handler(CallbackQueryHandler(agent_manage, pattern='^agent_manage$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_refresh, pattern='^agent_refresh$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_new, pattern='^agent_new$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_tgl, pattern='^agent_tgl '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_del, pattern='^agent_del '), group=-1)
         
         # Register legacy long callback versions for backward compatibility
-        dispatcher.add_handler(CallbackQueryHandler(agent_add, pattern='^agent_add$'))
-        dispatcher.add_handler(CallbackQueryHandler(agent_toggle, pattern='^agent_toggle '))
-        dispatcher.add_handler(CallbackQueryHandler(agent_delete, pattern='^agent_delete '))
+        dispatcher.add_handler(CallbackQueryHandler(agent_add, pattern='^agent_add$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_toggle, pattern='^agent_toggle '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_delete, pattern='^agent_delete '), group=-1)
         
         logging.info("✅ Agent management callbacks registered:")
         logging.info("   - agent_manage (main panel)")
