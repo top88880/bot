@@ -194,12 +194,19 @@ agents.update_one(
 - Agent queries indexed on agent_id
 - Decimal precision: 2 decimal places (0.01 USDT)
 
-## Next Steps (Not Implemented Yet)
+## Next Steps
 
-- [ ] Agent-specific links in user-facing UI
-- [ ] Price display with markup in product listings
-- [ ] Withdrawal history in agent backend
-- [ ] Analytics dashboard for agents
+All core features are now implemented:
+- ✅ Agent-specific links in user-facing UI
+- ✅ Price display with markup in product listings
+- ✅ Button-driven agent backend (no text commands)
+- ✅ Admin withdrawal review via buttons
+
+Possible future enhancements:
+- [ ] Withdrawal history in agent backend dashboard
+- [ ] Analytics dashboard for agents (sales stats, conversion)
+- [ ] Automated withdrawal processing via crypto API
+- [ ] Multi-currency support (currently USDT only)
 
 ---
 

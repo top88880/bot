@@ -6406,9 +6406,13 @@ def gmqq(update: Update, context: CallbackContext):
         query.answer(error_msg, show_alert=True)
         return
 
+    # ✅ Apply agent markup
+    base_price = Decimal(str(money))
+    display_price = calc_display_price_usdt(base_price, context)
+
     user_list = user.find_one({'user_id': user_id})
     USDT = user_list['USDT']
-    if USDT < money:
+    if USDT < float(display_price):
         fstext = f'''
 ❌余额不足，请立即充值
             '''
