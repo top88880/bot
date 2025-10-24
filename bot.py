@@ -10634,17 +10634,32 @@ def register_common_handlers(dispatcher, job_queue):
             agent_command, agent_panel_callback, agent_set_markup_callback,
             agent_withdraw_init_callback, agent_set_link_callback,
             agent_manage_buttons_callback, agent_add_button_callback,
-            agent_delete_button_callback, agent_text_input_handler
+            agent_delete_button_callback, agent_text_input_handler,
+            agent_claim_owner_callback, agent_markup_preset_callback,
+            agent_cfg_cs_callback, agent_cfg_official_callback,
+            agent_cfg_restock_callback, agent_cfg_tutorial_callback,
+            agent_cfg_notify_callback, agent_links_btns_callback
         )
         
         # Register agent backend command and callbacks (use group=-1 for priority)
         dispatcher.add_handler(CommandHandler('agent', agent_command, run_async=True), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_panel_callback, pattern='^agent_panel$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_claim_owner_callback, pattern='^agent_claim_owner$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_markup_callback, pattern='^agent_set_markup$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_markup_preset_callback, pattern='^agent_markup_preset_'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_withdraw_init_callback, pattern='^agent_withdraw_init$'), group=-1)
+        # Old link callback handlers (deprecated but kept for compatibility)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_support$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_channel$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_announcement$'), group=-1)
+        # New settings callback handlers
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_cs_callback, pattern='^agent_cfg_cs$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_official_callback, pattern='^agent_cfg_official$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_restock_callback, pattern='^agent_cfg_restock$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_tutorial_callback, pattern='^agent_cfg_tutorial$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_notify_callback, pattern='^agent_cfg_notify$'), group=-1)
+        # Link buttons management
+        dispatcher.add_handler(CallbackQueryHandler(agent_links_btns_callback, pattern='^agent_links_btns$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_manage_buttons_callback, pattern='^agent_manage_buttons$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_add_button_callback, pattern='^agent_add_button$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_delete_button_callback, pattern='^agent_delete_button$'), group=-1)

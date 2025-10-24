@@ -74,14 +74,16 @@ def save_agent(token, name, owner_user_id=None):
         'name': name,
         'status': 'stopped',
         'owner_user_id': owner_user_id,
-        'markup_usdt': '0',
-        'profit_available_usdt': '0',
-        'profit_frozen_usdt': '0',
-        'total_paid_usdt': '0',
-        'links': {
-            'support_link': None,
-            'channel_link': None,
-            'announcement_link': None,
+        'markup_usdt': '0.00000000',  # 8 decimal precision
+        'profit_available_usdt': '0.00000000',  # 8 decimal precision
+        'profit_frozen_usdt': '0.00000000',  # 8 decimal precision
+        'total_paid_usdt': '0.00000000',  # 8 decimal precision
+        'settings': {
+            'customer_service': None,
+            'official_channel': None,
+            'restock_group': None,
+            'tutorial_link': None,
+            'notify_channel_id': None,
             'extra_links': []
         },
         'created_at': datetime.now(),
