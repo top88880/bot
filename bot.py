@@ -182,6 +182,51 @@ def calc_display_price_usdt(base_price_usdt: Decimal, context: CallbackContext) 
     final_price = base_price_usdt + markup
     return final_price.quantize(Decimal('0.01'))
 
+def get_agent_links(context: CallbackContext) -> dict:
+    """Get agent-specific links configuration.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Dict with keys: support_link, channel_link, announcement_link, extra_links
+        Returns None for each if not set or not an agent bot.
+    """
+    agent_id = get_current_agent_id(context)
+    if not agent_id:
+        return {
+            'support_link': None,
+            'channel_link': None,
+            'announcement_link': None,
+            'extra_links': []
+        }
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            return {
+                'support_link': None,
+                'channel_link': None,
+                'announcement_link': None,
+                'extra_links': []
+            }
+        
+        links = agent.get('links', {})
+        return {
+            'support_link': links.get('support_link'),
+            'channel_link': links.get('channel_link'),
+            'announcement_link': links.get('announcement_link'),
+            'extra_links': links.get('extra_links', [])
+        }
+    except Exception as e:
+        logging.error(f"Error getting agent links: {e}")
+        return {
+            'support_link': None,
+            'channel_link': None,
+            'announcement_link': None,
+            'extra_links': []
+        }
+
 def record_agent_profit(context: CallbackContext, order_doc: dict):
     """Record profit for agent after successful order completion.
     
@@ -227,6 +272,55 @@ def record_agent_profit(context: CallbackContext, order_doc: dict):
         )
     except Exception as e:
         logging.error(f"Error recording agent profit: {e}")
+
+def get_customer_service_link(context: CallbackContext) -> str:
+    """Get customer service link - agent-specific if available, else default.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Customer service link/username
+    """
+    agent_links = get_agent_links(context)
+    support_link = agent_links.get('support_link')
+    
+    if support_link:
+        return support_link
+    
+    # Return default
+    return os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+
+def get_channel_link(context: CallbackContext) -> str:
+    """Get channel link - agent-specific if available, else default.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Channel link/username
+    """
+    agent_links = get_agent_links(context)
+    channel_link = agent_links.get('channel_link')
+    
+    if channel_link:
+        return channel_link
+    
+    # Return default
+    return os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
+
+def get_announcement_link(context: CallbackContext) -> str:
+    """Get announcement link - agent-specific if available, else None.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Announcement link or None
+    """
+    agent_links = get_agent_links(context)
+    return agent_links.get('announcement_link')
+
 
 def make_directory(path):
     if not os.path.exists(path):
@@ -580,7 +674,9 @@ def inline_query(update: Update, context: CallbackContext):
             return
 
         pname = product.get('projectname', '未知商品')
-        price = float(product.get('money', 0))
+        base_price = Decimal(str(product.get('money', 0)))
+        # Apply agent markup
+        price = float(calc_display_price_usdt(base_price, context))
         stock = hb.count_documents({'nowuid': nowuid, 'state': 0})
         desc = product.get('desc', '暂无商品说明')
 
@@ -4225,8 +4321,8 @@ def help_command(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     lang = user.find_one({'user_id': user_id}).get('lang', 'zh')
     
-    # ✅ 从环境变量读取客服联系方式
-    customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+    # ✅ Get customer service link (agent-specific or default)
+    customer_service = get_customer_service_link(context)
 
     if lang == 'zh':
         text = (
@@ -6164,12 +6260,16 @@ def catejflsp(update: Update, context: CallbackContext):
         if money <= 0:
             continue
 
+        # Apply agent markup
+        base_price = Decimal(str(money))
+        display_price = float(calc_display_price_usdt(base_price, context))
+
         if lang != 'zh':
             projectname = get_fy(projectname)
 
         keyboard.append([
             InlineKeyboardButton(
-                f'{projectname} {money}U [库存: {hsl}个]',
+                f'{projectname} {display_price:.2f}U [库存: {hsl}个]',
                 callback_data=f'gmsp {nowuid}:{hsl}'
             )
         ])
@@ -6233,6 +6333,10 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         error_msg = "❌ 该商品暂未设置价格，请联系管理员！" if lang == 'zh' else "❌ This product has no price set, please contact admin!"
         return send_func(error_msg)
 
+    # ✅ Apply agent markup to price
+    base_price = Decimal(str(money))
+    display_price = calc_display_price_usdt(base_price, context)
+
     # ✅ 实时库存查询
     stock = hb.count_documents({'nowuid': nowuid, 'state': 0})
 
@@ -6241,7 +6345,7 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         fstext = f'''
 <b>✅您正在购买:  {projectname}
 
-💰 价格： {money:.2f} USDT
+💰 价格： {display_price:.2f} USDT
 
 🏢 库存： {stock} 份
 
@@ -6261,7 +6365,7 @@ def gmsp(update: Update, context: CallbackContext, nowuid=None, hsl="1"):
         fstext = f'''
 <b>✅You are buying: {projectname}
 
-💰 Price: {money:.2f} USDT
+💰 Price: {display_price:.2f} USDT
 
 🏢 Inventory: {stock} items
 
@@ -6302,9 +6406,15 @@ def gmqq(update: Update, context: CallbackContext):
         query.answer(error_msg, show_alert=True)
         return
 
+    # ✅ Apply agent markup
+    base_price = Decimal(str(money))
+    display_price = calc_display_price_usdt(base_price, context)
+
     user_list = user.find_one({'user_id': user_id})
     USDT = user_list['USDT']
-    if USDT < money:
+    # Compare using Decimal for precision
+    user_balance = Decimal(str(USDT))
+    if user_balance < display_price:
         fstext = f'''
 ❌余额不足，请立即充值
             '''
@@ -7850,7 +7960,11 @@ def textkeyboard(update: Update, context: CallbackContext):
                     kc = len(list(hb.find({'nowuid': nowuid, 'state': 0})))
                     if is_number(text):
                         gmsl = int(text)
-                        zxymoney = standard_num(gmsl * money)
+                        # Apply agent markup to unit price
+                        base_price = Decimal(str(money))
+                        display_price = calc_display_price_usdt(base_price, context)
+                        # Calculate total with markup
+                        zxymoney = standard_num(gmsl * float(display_price))
                         zxymoney = float(zxymoney) if str((zxymoney)).count('.') > 0 else int(standard_num(zxymoney))
                         if kc < gmsl:
                             if lang == 'zh':
@@ -8754,16 +8868,35 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '📞联系客服' or text == '📞Contact Support':
                 del_message(update.message)
-                # ✅ 从环境变量读取联系方式
-                customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
-                official_channel = os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
+                # ✅ Get contact links (agent-specific or default)
+                customer_service = get_customer_service_link(context)
+                official_channel = get_channel_link(context)
                 restock_group = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
+                
+                # Get agent-specific extra links if available
+                agent_links = get_agent_links(context)
+                extra_links = agent_links.get('extra_links', [])
                 
                 msg = f"""
 ------------------------
 <b>{'客服' if lang == 'zh' else 'Support'}：</b>{customer_service}  
 <b>{'官方频道' if lang == 'zh' else 'Official Channel'}：</b>{official_channel}  
-<b>{'补货通知群' if lang == 'zh' else 'Restock Group'}：</b>{restock_group}
+<b>{'补货通知群' if lang == 'zh' else 'Restock Group'}：</b>{restock_group}"""
+                
+                # Add agent-specific announcement link if available
+                announcement_link = get_announcement_link(context)
+                if announcement_link:
+                    msg += f"\n<b>{'公告' if lang == 'zh' else 'Announcement'}：</b>{announcement_link}"
+                
+                # Add custom links
+                if extra_links:
+                    msg += "\n\n<b>{'更多链接' if lang == 'zh' else 'More Links'}：</b>"
+                    for link_data in extra_links:
+                        title = link_data.get('title', 'Link')
+                        url = link_data.get('url', '')
+                        msg += f"\n• <a href='{url}'>{title}</a>"
+                
+                msg += """
 ------------------------
 <i>{'无其它任何联系方式，谨防诈骗！' if lang == 'zh' else 'No other contact methods. Beware of scams!'}</i>
                 """.strip()
@@ -8798,10 +8931,10 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '🔷出货通知' or text == '🔷Delivery Notice':
                 del_message(update.message)
-                # ✅ 从环境变量读取补货通知群
-                restock_group = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
+                # ✅ Get channel link (agent-specific or default)
+                channel_link = get_channel_link(context)
                 
-                msg = f"<b>{'🔥补货通知群：' if lang == 'zh' else '🔥 Restock Notification Group:'}</b> {restock_group}"
+                msg = f"<b>{'🔥补货通知群：' if lang == 'zh' else '🔥 Restock Notification Group:'}</b> {channel_link}"
                 keyboard = [[InlineKeyboardButton("❌关闭" if lang == 'zh' else "❌ Close", callback_data=f"close {user_id}")]]
                 context.bot.send_message(
                     chat_id=user_id,
@@ -10524,7 +10657,8 @@ def register_common_handlers(dispatcher, job_queue):
     try:
         from admin.withdraw_commands import (
             withdraw_list_command, withdraw_approve_command, withdraw_reject_command,
-            withdraw_pay_command, withdraw_stats_command
+            withdraw_pay_command, withdraw_stats_command,
+            withdraw_list_button, withdraw_approve_button, withdraw_reject_button
         )
         
         # Register admin withdrawal commands
@@ -10534,7 +10668,12 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher.add_handler(CommandHandler('withdraw_pay', withdraw_pay_command, run_async=True))
         dispatcher.add_handler(CommandHandler('withdraw_stats', withdraw_stats_command, run_async=True))
         
-        logging.info("✅ Admin withdrawal commands registered")
+        # Register button-based withdrawal review handlers
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_list_button, pattern='^agent_wd_list$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_approve_button, pattern='^agent_w_ok '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(withdraw_reject_button, pattern='^agent_w_no '), group=-1)
+        
+        logging.info("✅ Admin withdrawal commands and button handlers registered")
     except ImportError as e:
         logging.warning(f"Could not import admin withdrawal commands: {e}")
     
