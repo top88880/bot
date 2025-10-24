@@ -189,15 +189,18 @@ def get_agent_links(context: CallbackContext) -> dict:
         context: CallbackContext to get agent info
     
     Returns:
-        Dict with keys: support_link, channel_link, announcement_link, extra_links
+        Dict with keys: customer_service, official_channel, restock_group, 
+        tutorial_link, notify_channel_id, extra_links
         Returns None for each if not set or not an agent bot.
     """
     agent_id = get_current_agent_id(context)
     if not agent_id:
         return {
-            'support_link': None,
-            'channel_link': None,
-            'announcement_link': None,
+            'customer_service': None,
+            'official_channel': None,
+            'restock_group': None,
+            'tutorial_link': None,
+            'notify_channel_id': None,
             'extra_links': []
         }
     
@@ -205,25 +208,44 @@ def get_agent_links(context: CallbackContext) -> dict:
         agent = agents.find_one({'agent_id': agent_id})
         if not agent:
             return {
-                'support_link': None,
-                'channel_link': None,
-                'announcement_link': None,
+                'customer_service': None,
+                'official_channel': None,
+                'restock_group': None,
+                'tutorial_link': None,
+                'notify_channel_id': None,
                 'extra_links': []
             }
         
-        links = agent.get('links', {})
-        return {
-            'support_link': links.get('support_link'),
-            'channel_link': links.get('channel_link'),
-            'announcement_link': links.get('announcement_link'),
-            'extra_links': links.get('extra_links', [])
-        }
+        # Check for new settings structure first, then fall back to old links structure
+        settings = agent.get('settings', {})
+        if settings:
+            return {
+                'customer_service': settings.get('customer_service'),
+                'official_channel': settings.get('official_channel'),
+                'restock_group': settings.get('restock_group'),
+                'tutorial_link': settings.get('tutorial_link'),
+                'notify_channel_id': settings.get('notify_channel_id'),
+                'extra_links': settings.get('extra_links', [])
+            }
+        else:
+            # Fall back to old links structure for backward compatibility
+            links = agent.get('links', {})
+            return {
+                'customer_service': links.get('support_link'),
+                'official_channel': links.get('channel_link'),
+                'restock_group': links.get('announcement_link'),
+                'tutorial_link': None,
+                'notify_channel_id': None,
+                'extra_links': links.get('extra_links', [])
+            }
     except Exception as e:
         logging.error(f"Error getting agent links: {e}")
         return {
-            'support_link': None,
-            'channel_link': None,
-            'announcement_link': None,
+            'customer_service': None,
+            'official_channel': None,
+            'restock_group': None,
+            'tutorial_link': None,
+            'notify_channel_id': None,
             'extra_links': []
         }
 
@@ -255,12 +277,12 @@ def record_agent_profit(context: CallbackContext, order_doc: dict):
         current_available = Decimal(str(agent.get('profit_available_usdt', '0')))
         new_available = current_available + total_profit
         
-        # Update agent profit
+        # Update agent profit with 8 decimal precision
         agents.update_one(
             {'agent_id': agent_id},
             {
                 '$set': {
-                    'profit_available_usdt': str(new_available.quantize(Decimal('0.01'))),
+                    'profit_available_usdt': str(new_available.quantize(Decimal('0.00000001'))),
                     'updated_at': datetime.now()
                 }
             }
@@ -283,10 +305,10 @@ def get_customer_service_link(context: CallbackContext) -> str:
         Customer service link/username
     """
     agent_links = get_agent_links(context)
-    support_link = agent_links.get('support_link')
+    customer_service = agent_links.get('customer_service')
     
-    if support_link:
-        return support_link
+    if customer_service:
+        return customer_service
     
     # Return default
     return os.getenv('CUSTOMER_SERVICE', '@lwmmm')
@@ -301,25 +323,31 @@ def get_channel_link(context: CallbackContext) -> str:
         Channel link/username
     """
     agent_links = get_agent_links(context)
-    channel_link = agent_links.get('channel_link')
+    official_channel = agent_links.get('official_channel')
     
-    if channel_link:
-        return channel_link
+    if official_channel:
+        return official_channel
     
     # Return default
     return os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
 
 def get_announcement_link(context: CallbackContext) -> str:
-    """Get announcement link - agent-specific if available, else None.
+    """Get announcement/restock group link - agent-specific if available, else default.
     
     Args:
         context: CallbackContext to get agent info
     
     Returns:
-        Announcement link or None
+        Restock group link or default
     """
     agent_links = get_agent_links(context)
-    return agent_links.get('announcement_link')
+    restock_group = agent_links.get('restock_group')
+    
+    if restock_group:
+        return restock_group
+    
+    # Return default
+    return os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
 
 
 def make_directory(path):
