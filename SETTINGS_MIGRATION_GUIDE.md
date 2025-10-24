@@ -334,10 +334,13 @@ db.agents.find({
 
 ### Check precision of financial fields
 ```javascript
+// Find fields with old precision (less than 8 decimals)
 db.agents.find({
     $or: [
-        { markup_usdt: { $regex: /^\d+\.\d{1,2}$/ } },
-        { profit_available_usdt: { $regex: /^\d+\.\d{1,2}$/ } }
+        { markup_usdt: { $regex: /^\d+\.\d{1,7}$/ } },
+        { profit_available_usdt: { $regex: /^\d+\.\d{1,7}$/ } },
+        { profit_frozen_usdt: { $regex: /^\d+\.\d{1,7}$/ } },
+        { total_paid_usdt: { $regex: /^\d+\.\d{1,7}$/ } }
     ]
 })
 ```

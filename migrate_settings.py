@@ -70,22 +70,22 @@ def migrate_agent_structure(agent_id: str, dry_run: bool = False) -> bool:
         # Convert to Decimal and back to string with 8 decimal places
         try:
             markup_usdt = str(Decimal(str(markup_usdt)).quantize(Decimal('0.00000001')))
-        except:
+        except (ValueError, TypeError, Exception):
             markup_usdt = '0.00000000'
             
         try:
             profit_available = str(Decimal(str(profit_available)).quantize(Decimal('0.00000001')))
-        except:
+        except (ValueError, TypeError, Exception):
             profit_available = '0.00000000'
             
         try:
             profit_frozen = str(Decimal(str(profit_frozen)).quantize(Decimal('0.00000001')))
-        except:
+        except (ValueError, TypeError, Exception):
             profit_frozen = '0.00000000'
             
         try:
             total_paid = str(Decimal(str(total_paid)).quantize(Decimal('0.00000001')))
-        except:
+        except (ValueError, TypeError, Exception):
             total_paid = '0.00000000'
         
         if dry_run:
