@@ -1,0 +1,62 @@
+# Integration Instructions for bot.py
+
+## MINIMAL CHANGES REQUIRED
+
+### 1. Add import at the top of bot.py (after existing imports, around line 74)
+
+```python
+# Multi-tenant agent system integration
+try:
+    from bot_integration import integrate_agent_system
+    AGENT_SYSTEM_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Agent system not available: {e}")
+    AGENT_SYSTEM_AVAILABLE = False
+```
+
+### 2. In main() function, after dispatcher setup (around line 10255)
+
+Add this right after `dispatcher = updater.dispatcher`:
+
+```python
+    dispatcher = updater.dispatcher
+    
+    # Initialize multi-tenant agent system
+    if AGENT_SYSTEM_AVAILABLE:
+        try:
+            integrate_agent_system(dispatcher, updater.job_queue)
+        except Exception as e:
+            logging.error(f"Failed to initialize agent system: {e}")
+            logging.info("Continuing with master bot only...")
+```
+
+That's it! These are the only changes needed to bot.py.
+
+## What this does:
+
+1. Tries to import the agent integration module
+2. If available, initializes:
+   - Database indexes
+   - Master tenant context
+   - Admin commands (/agent_create, /agent_list, etc.)
+   - Agent self-service panels
+   - Withdrawal management
+   - Earnings maturity job
+   - Agent bot discovery and startup
+3. If import fails or initialization fails, bot continues normally without agent features
+
+## Testing:
+
+1. Apply the changes above
+2. Restart the bot
+3. Check logs for:
+   - "Initializing Multi-Tenant Agent System"
+   - "Agent System Initialization Complete"
+4. Run data migration: `python migrate_data.py`
+5. Create first agent: `/agent_create agent001 <token> TestAgent`
+6. Check agent status: `/agent_list`
+
+## Rollback:
+
+If issues occur, simply comment out the integration lines and restart.
+The bot will run normally without agent features.
