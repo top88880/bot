@@ -10565,14 +10565,14 @@ def register_common_handlers(dispatcher, job_queue):
         job_queue.run_repeating(jiexi, 3, 1, name='chongzhi')
 
 
-def start_bot_with_token(token, enable_agent_system=False):
+def start_bot_with_token(token, enable_agent_system=True):
     """
     Start a bot instance with the given token.
     This function is used to spawn agent bots that share the same handlers as the master bot.
     
     Args:
         token: Bot token string
-        enable_agent_system: If True, enables agent management system (only for master bot)
+        enable_agent_system: If True, enables agent management system (default True for master bot)
     
     Returns:
         Updater instance
