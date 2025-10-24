@@ -146,6 +146,88 @@ def remove_admin(user_id: int) -> bool:
         return True
     return False
 
+# ✅ Agent Context and Pricing Helpers
+def get_current_agent_id(context: CallbackContext) -> str:
+    """Get the agent_id from bot_data context, or None if master bot."""
+    return context.bot_data.get('agent_id')
+
+def get_agent_markup_usdt(context: CallbackContext) -> Decimal:
+    """Get agent markup in USDT from context. Returns Decimal('0') if no agent or no markup."""
+    agent_id = get_current_agent_id(context)
+    if not agent_id:
+        return Decimal('0')
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            return Decimal('0')
+        
+        markup_str = agent.get('markup_usdt', '0')
+        return Decimal(str(markup_str))
+    except Exception as e:
+        logging.error(f"Error getting agent markup: {e}")
+        return Decimal('0')
+
+def calc_display_price_usdt(base_price_usdt: Decimal, context: CallbackContext) -> Decimal:
+    """Calculate display price by adding agent markup to base price.
+    
+    Args:
+        base_price_usdt: Base product price in USDT (as Decimal)
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Final price in USDT with markup applied (as Decimal)
+    """
+    markup = get_agent_markup_usdt(context)
+    final_price = base_price_usdt + markup
+    return final_price.quantize(Decimal('0.01'))
+
+def record_agent_profit(context: CallbackContext, order_doc: dict):
+    """Record profit for agent after successful order completion.
+    
+    Args:
+        context: CallbackContext to get agent info
+        order_doc: Order document from gmjlu collection
+    """
+    agent_id = get_current_agent_id(context)
+    if not agent_id:
+        return  # Not an agent bot, skip
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            logging.warning(f"Agent not found for profit recording: {agent_id}")
+            return
+        
+        markup_usdt = Decimal(str(agent.get('markup_usdt', '0')))
+        if markup_usdt <= 0:
+            return  # No markup, no profit
+        
+        count = order_doc.get('count', 1)
+        total_profit = markup_usdt * Decimal(str(count))
+        
+        # Get current available profit
+        current_available = Decimal(str(agent.get('profit_available_usdt', '0')))
+        new_available = current_available + total_profit
+        
+        # Update agent profit
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'profit_available_usdt': str(new_available.quantize(Decimal('0.01'))),
+                    'updated_at': datetime.now()
+                }
+            }
+        )
+        
+        logging.info(
+            f"Recorded profit for agent {agent_id}: "
+            f"{total_profit} USDT (markup={markup_usdt} × {count})"
+        )
+    except Exception as e:
+        logging.error(f"Error recording agent profit: {e}")
+
 def make_directory(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -6680,6 +6762,7 @@ def dabaohao(context, user_id, folder_names, leixing, nowuid, erjiprojectname, f
     timer = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     count = len(folder_names)
 
+    order_doc = None
     if leixing == '协议号':
         zip_filename = f"./协议号发货/{user_id}_{int(time.time())}.zip"
         with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -6690,7 +6773,7 @@ def dabaohao(context, user_id, folder_names, leixing, nowuid, erjiprojectname, f
                     zipf.write(json_file, os.path.basename(json_file))
                 if os.path.exists(session_file):
                     zipf.write(session_file, os.path.basename(session_file))
-        goumaijilua(leixing, bianhao, user_id, erjiprojectname, zip_filename, fstext, timer, count)
+        order_doc = goumaijilua(leixing, bianhao, user_id, erjiprojectname, zip_filename, fstext, timer, count)
         context.bot.send_document(chat_id=user_id, document=open(zip_filename, "rb"))
 
     elif leixing == '直登号':
@@ -6704,21 +6787,25 @@ def dabaohao(context, user_id, folder_names, leixing, nowuid, erjiprojectname, f
                             full_path = os.path.join(root, file)
                             rel_path = os.path.join(folder_name, os.path.relpath(full_path, base_path))
                             zipf.write(full_path, rel_path)
-        goumaijilua(leixing, bianhao, user_id, erjiprojectname, zip_filename, fstext, timer, count)
+        order_doc = goumaijilua(leixing, bianhao, user_id, erjiprojectname, zip_filename, fstext, timer, count)
         context.bot.send_document(chat_id=user_id, document=open(zip_filename, "rb"))
 
     elif leixing == 'API链接':
         link_text = '\n'.join(folder_names)
         context.bot.send_message(chat_id=user_id, text=link_text)
-        goumaijilua(leixing, bianhao, user_id, erjiprojectname, link_text, fstext, timer, count)
+        order_doc = goumaijilua(leixing, bianhao, user_id, erjiprojectname, link_text, fstext, timer, count)
 
     elif leixing == 'txt文本':
         content = '\n'.join(folder_names)
         context.bot.send_message(chat_id=user_id, text=content)
-        goumaijilua(leixing, bianhao, user_id, erjiprojectname, content, fstext, timer, count)
+        order_doc = goumaijilua(leixing, bianhao, user_id, erjiprojectname, content, fstext, timer, count)
 
     else:
         context.bot.send_message(chat_id=user_id, text=f"❌ 未知商品类型：{leixing}")
+    
+    # Record agent profit after successful order
+    if order_doc:
+        record_agent_profit(context, order_doc)
 
 
 
@@ -7372,8 +7459,8 @@ def textkeyboard(update: Update, context: CallbackContext):
                             parse_mode='HTML'
                         )
                         
-                        # Save agent to storage
-                        agent_id = save_agent(agent_token, agent_name)
+                        # Save agent to storage (with creator's user_id as owner)
+                        agent_id = save_agent(agent_token, agent_name, owner_user_id=user_id)
                         
                         # Update processing message
                         try:
@@ -10408,6 +10495,49 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher: Telegram bot dispatcher
         job_queue: Job queue for scheduled tasks
     """
+    # Import agent backend handlers
+    try:
+        from handlers.agent_backend import (
+            agent_command, agent_panel_callback, agent_set_markup_callback,
+            agent_withdraw_init_callback, agent_set_link_callback,
+            agent_manage_buttons_callback, agent_add_button_callback,
+            agent_delete_button_callback, agent_text_input_handler
+        )
+        
+        # Register agent backend command and callbacks (use group=-1 for priority)
+        dispatcher.add_handler(CommandHandler('agent', agent_command, run_async=True), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_panel_callback, pattern='^agent_panel$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_set_markup_callback, pattern='^agent_set_markup$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_withdraw_init_callback, pattern='^agent_withdraw_init$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_support$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_channel$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_set_link_callback, pattern='^agent_set_announcement$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_manage_buttons_callback, pattern='^agent_manage_buttons$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_add_button_callback, pattern='^agent_add_button$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_delete_button_callback, pattern='^agent_delete_button$'), group=-1)
+        
+        logging.info("✅ Agent backend handlers registered")
+    except ImportError as e:
+        logging.warning(f"Could not import agent backend handlers: {e}")
+    
+    # Import admin withdrawal commands
+    try:
+        from admin.withdraw_commands import (
+            withdraw_list_command, withdraw_approve_command, withdraw_reject_command,
+            withdraw_pay_command, withdraw_stats_command
+        )
+        
+        # Register admin withdrawal commands
+        dispatcher.add_handler(CommandHandler('withdraw_list', withdraw_list_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_approve', withdraw_approve_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_reject', withdraw_reject_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_pay', withdraw_pay_command, run_async=True))
+        dispatcher.add_handler(CommandHandler('withdraw_stats', withdraw_stats_command, run_async=True))
+        
+        logging.info("✅ Admin withdrawal commands registered")
+    except ImportError as e:
+        logging.warning(f"Could not import admin withdrawal commands: {e}")
+    
     dispatcher.add_handler(CommandHandler('start', start, run_async=True))
     dispatcher.add_handler(CommandHandler('help', help_command, run_async=True))
     dispatcher.add_handler(CommandHandler('add', adm, run_async=True))
@@ -10554,6 +10684,16 @@ def register_common_handlers(dispatcher, job_queue):
     dispatcher.add_handler(CallbackQueryHandler(cattu, pattern='cattu', run_async=True))
     dispatcher.add_handler(CallbackQueryHandler(handle_all_callbacks))
 
+    # Agent backend text handler (must be before general text handler)
+    try:
+        from handlers.agent_backend import agent_text_input_handler
+        dispatcher.add_handler(MessageHandler(
+            Filters.chat_type.private & Filters.text & ~Filters.command,
+            agent_text_input_handler, run_async=True
+        ), group=-1)
+    except ImportError:
+        pass
+
     dispatcher.add_handler(MessageHandler(Filters.chat_type.private & Filters.reply, huifu), )
     dispatcher.add_handler(MessageHandler(
         (Filters.text | Filters.photo | Filters.animation | Filters.video | Filters.document) & ~(Filters.command),
@@ -10565,7 +10705,7 @@ def register_common_handlers(dispatcher, job_queue):
         job_queue.run_repeating(jiexi, 3, 1, name='chongzhi')
 
 
-def start_bot_with_token(token, enable_agent_system=True):
+def start_bot_with_token(token, enable_agent_system=True, agent_context=None):
     """
     Start a bot instance with the given token.
     This function is used to spawn agent bots that share the same handlers as the master bot.
@@ -10573,11 +10713,14 @@ def start_bot_with_token(token, enable_agent_system=True):
     Args:
         token: Bot token string
         enable_agent_system: If True, enables agent management system (default True for master bot)
+        agent_context: Dict with 'agent_id' and optional 'owner_user_id' for agent bots (None for master)
     
     Returns:
         Updater instance
     """
     logging.info(f"Starting bot with token {'(master)' if enable_agent_system else '(agent)'}...")
+    if agent_context:
+        logging.info(f"  Agent context: {agent_context}")
     
     updater = Updater(
         token=token,
@@ -10587,6 +10730,12 @@ def start_bot_with_token(token, enable_agent_system=True):
     )
     
     dispatcher = updater.dispatcher
+    
+    # Set agent context in bot_data if provided
+    if agent_context:
+        dispatcher.bot_data['agent_id'] = agent_context.get('agent_id')
+        dispatcher.bot_data['owner_user_id'] = agent_context.get('owner_user_id')
+        logging.info(f"  Stored agent_id in bot_data: {agent_context.get('agent_id')}")
     
     # Register all common handlers
     register_common_handlers(dispatcher, updater.job_queue)

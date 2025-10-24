@@ -322,9 +322,13 @@ def fanyibao(projectname, text, fanyi):
         logging.error(f"❌ 插入翻译包失败：{projectname} - {e}")
 
 def goumaijilua(leixing, bianhao, user_id, projectname, text, ts, timer, count):
-    """购买记录插入函数"""
+    """购买记录插入函数
+    
+    Returns:
+        dict: The inserted order document
+    """
     try:
-        gmjlu.insert_one({
+        order_doc = {
             'leixing': leixing,
             'bianhao': bianhao,
             'user_id': user_id,
@@ -333,10 +337,13 @@ def goumaijilua(leixing, bianhao, user_id, projectname, text, ts, timer, count):
             'ts': ts,
             'timer': timer,
             'count': count   # ✅ 记录实际数量
-        })
+        }
+        gmjlu.insert_one(order_doc)
         logging.info(f"✅ 插入购买记录：{user_id} - {projectname}")
+        return order_doc
     except Exception as e:
         logging.error(f"❌ 插入购买记录失败：{user_id} - {projectname} - {e}")
+        return None
 
 def xieyihaobaocun(uid, nowuid, hbid, projectname, timer):
     """协议号保存函数"""
