@@ -71,6 +71,14 @@ from mongo import *
 from mongo import topup, user
 from utils import create_easypay_url, create_payment_with_qrcode
 from pay_server import start_flask_server
+from bot_links import (
+    get_links_for_child_agent,
+    format_contacts_block_for_child,
+    build_contact_buttons_for_child,
+    get_notify_channel_id_for_child,
+    get_customer_service_for_child,
+    get_tutorial_link_for_child
+)
 
 # Multi-tenant agent system integration
 try:
@@ -8987,35 +8995,12 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '📞联系客服' or text == '📞Contact Support':
                 del_message(update.message)
-                # ✅ Get contact links (agent-specific or default)
-                customer_service = get_customer_service_link(context)
-                official_channel = get_channel_link(context)
-                restock_group = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
-                
-                # Get agent-specific extra links if available
-                agent_links = get_agent_links(context)
-                extra_links = agent_links.get('extra_links', [])
+                # ✅ Use bot_links helper to get contact info
+                contact_block = format_contacts_block_for_child(context, lang)
                 
                 msg = f"""
 ------------------------
-<b>{'客服' if lang == 'zh' else 'Support'}：</b>{customer_service}  
-<b>{'官方频道' if lang == 'zh' else 'Official Channel'}：</b>{official_channel}  
-<b>{'补货通知群' if lang == 'zh' else 'Restock Group'}：</b>{restock_group}"""
-                
-                # Add agent-specific announcement link if available
-                announcement_link = get_announcement_link(context)
-                if announcement_link:
-                    msg += f"\n<b>{'公告' if lang == 'zh' else 'Announcement'}：</b>{announcement_link}"
-                
-                # Add custom links
-                if extra_links:
-                    msg += "\n\n<b>{'更多链接' if lang == 'zh' else 'More Links'}：</b>"
-                    for link_data in extra_links:
-                        title = link_data.get('title', 'Link')
-                        url = link_data.get('url', '')
-                        msg += f"\n• <a href='{url}'>{title}</a>"
-                
-                msg += """
+{contact_block}
 ------------------------
 <i>{'无其它任何联系方式，谨防诈骗！' if lang == 'zh' else 'No other contact methods. Beware of scams!'}</i>
                 """.strip()
@@ -9030,15 +9015,23 @@ def textkeyboard(update: Update, context: CallbackContext):
 
             elif text == '🔶使用教程' or text == '🔶Usage Tutorial':
                 del_message(update.message)
-                # ✅ 从环境变量读取教程链接
-                tutorial_link = os.getenv('TUTORIAL_LINK', 'https://t.me/XCZHCS/106')
+                # ✅ Use bot_links helper to get tutorial link
+                tutorial_link = get_tutorial_link_for_child(context)
                 
-                msg = f"""
+                if tutorial_link:
+                    msg = f"""
 ------------------------
 {'点击下方链接查看详细操作指引 👇' if lang == 'zh' else 'Click the link below to view instructions 👇'}  
 🔗 {tutorial_link}
 ------------------------
-                """.strip()
+                    """.strip()
+                else:
+                    msg = f"""
+------------------------
+{'教程链接未设置' if lang == 'zh' else 'Tutorial link not configured'}
+------------------------
+                    """.strip()
+                
                 keyboard = [[InlineKeyboardButton("❌关闭" if lang == 'zh' else "❌ Close", callback_data=f"close {user_id}")]]
                 context.bot.send_message(
                     chat_id=user_id,
@@ -9274,7 +9267,8 @@ def textkeyboard(update: Update, context: CallbackContext):
                 user.update_one({'user_id': user_id}, {'$unset': {'cz_paytype': ""}})
                 
                 # ✅ 从环境变量读取客服联系方式
-                customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+                # ✅ Get customer service link (agent-specific or default)
+                customer_service = get_customer_service_link(context)
 
                 if ENABLE_ALIPAY_WECHAT:
                     # 显示所有支付方式
@@ -9809,8 +9803,8 @@ def czback_callback(update: Update, context: CallbackContext):
     user.update_one({'user_id': user_id}, {'$unset': {'cz_paytype': ""}})
     lang = user.find_one({'user_id': user_id}).get('lang', 'zh')
     
-    # ✅ 从环境变量读取客服联系方式
-    customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+    # ✅ Get customer service link (agent-specific or default)
+    customer_service = get_customer_service_link(context)
 
     if ENABLE_ALIPAY_WECHAT:
         # 显示所有支付方式
@@ -10206,8 +10200,8 @@ def handle_all_callbacks(update: Update, context: CallbackContext):
     lang = user.find_one({'user_id': user_id}).get('lang', 'zh')
 
     if query.data == "notice":
-        # ✅ 从环境变量读取客服联系方式
-        customer_service = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
+        # ✅ Get customer service link (agent-specific or default)
+        customer_service = get_customer_service_link(context)
         
         # 只弹窗，不发送消息
         alert_text = (
