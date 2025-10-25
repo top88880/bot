@@ -13,6 +13,7 @@ from services.agent_service import (
     update_agent_pricing, get_agent_by_id
 )
 from services.tenant import get_tenant_string
+from services.message_utils import safe_edit_message_text
 from models.constants import (
     AGENT_STATUS_ACTIVE, AGENT_STATUS_PAUSED, AGENT_STATUS_SUSPENDED,
     MARKUP_TYPE_FIXED, MARKUP_TYPE_PERCENT
@@ -282,7 +283,8 @@ def agent_panel_callback(update: Update, context: CallbackContext):
             [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
         ]
         
-        query.edit_message_text(
+        safe_edit_message_text(
+            query,
             text=text,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
@@ -290,7 +292,7 @@ def agent_panel_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"Error in agent_panel_callback: {e}")
-        query.edit_message_text(f"❌ Error loading agent panel: {e}")
+        safe_edit_message_text(query, f"❌ Error loading agent panel: {e}")
 
 
 def agent_list_view_callback(update: Update, context: CallbackContext):
@@ -304,7 +306,8 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
         running_agent_ids = set(get_running_agents())
         
         if not agents:
-            query.edit_message_text(
+            safe_edit_message_text(
+                query,
                 "No agents found.\n\nUse /agent_create to create a new agent."
             )
             return
@@ -332,7 +335,8 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
         keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="agent_panel")])
         keyboard.append([InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")])
         
-        query.edit_message_text(
+        safe_edit_message_text(
+            query,
             text=text,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
@@ -340,7 +344,7 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"Error in agent_list_view_callback: {e}")
-        query.edit_message_text(f"❌ Error loading agent list: {e}")
+        safe_edit_message_text(query, f"❌ Error loading agent list: {e}")
 
 
 def agent_detail_callback(update: Update, context: CallbackContext):
@@ -356,7 +360,7 @@ def agent_detail_callback(update: Update, context: CallbackContext):
         agent = get_agent_by_id(agents_collection, agent_id)
         
         if not agent:
-            query.edit_message_text(f"❌ Agent '{agent_id}' not found")
+            safe_edit_message_text(query, f"❌ Agent '{agent_id}' not found")
             return
         
         name = agent.get('name', 'Unnamed')
@@ -373,12 +377,13 @@ def agent_detail_callback(update: Update, context: CallbackContext):
 <b>Management Options:</b>"""
         
         keyboard = [
-            [InlineKeyboardButton("🛠 联系方式设置", callback_data=f"agent_settings {agent_id}")],
+            [InlineKeyboardButton("🛠 代理联系方式设置", callback_data=f"agent_settings {agent_id}")],
             [InlineKeyboardButton("⬅️ Back to List", callback_data="agent_list_view")],
             [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
         ]
         
-        query.edit_message_text(
+        safe_edit_message_text(
+            query,
             text=text,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
@@ -386,7 +391,7 @@ def agent_detail_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"Error in agent_detail_callback: {e}")
-        query.edit_message_text(f"❌ Error loading agent details: {e}")
+        safe_edit_message_text(query, f"❌ Error loading agent details: {e}")
 
 
 def agent_settings_callback(update: Update, context: CallbackContext):
@@ -402,7 +407,7 @@ def agent_settings_callback(update: Update, context: CallbackContext):
         agent = get_agent_by_id(agents_collection, agent_id)
         
         if not agent:
-            query.edit_message_text(f"❌ Agent '{agent_id}' not found")
+            safe_edit_message_text(query, f"❌ Agent '{agent_id}' not found")
             return
         
         name = agent.get('name', 'Unnamed')
@@ -445,7 +450,8 @@ def agent_settings_callback(update: Update, context: CallbackContext):
             [InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")]
         ]
         
-        query.edit_message_text(
+        safe_edit_message_text(
+            query,
             text=text,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
@@ -453,7 +459,7 @@ def agent_settings_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"Error in agent_settings_callback: {e}")
-        query.edit_message_text(f"❌ Error loading agent settings: {e}")
+        safe_edit_message_text(query, f"❌ Error loading agent settings: {e}")
 
 
 # Admin setting handlers
@@ -483,7 +489,8 @@ def admin_set_cs_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -515,7 +522,8 @@ def admin_set_official_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -548,7 +556,8 @@ def admin_set_restock_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -584,7 +593,8 @@ def admin_set_tutorial_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -621,7 +631,8 @@ def admin_set_notify_channel_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -660,7 +671,8 @@ def admin_set_notify_group_callback(update: Update, context: CallbackContext):
     
     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
     
-    query.edit_message_text(
+    safe_edit_message_text(
+        query,
         text=text,
         parse_mode='HTML',
         reply_markup=InlineKeyboardMarkup(keyboard)

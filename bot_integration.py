@@ -427,33 +427,42 @@ def agent_manage(update, context):
             ]
         ]
         
-        # Add toggle/delete/owners buttons for each agent (using short callback_data)
+        # Add manage/toggle/delete/owners buttons for each agent (using short callback_data)
         for agent in agents_list:
             agent_id = agent.get('agent_id')
             name = agent.get('name', 'Unnamed')
             
             # Truncate name if too long to keep callback_data under 64 bytes
-            display_name = name[:10] + "..." if len(name) > 10 else name
+            display_name = name[:8] + "..." if len(name) > 8 else name
             
             row = []
+            # Add settings button
+            row.append(InlineKeyboardButton(
+                f"⚙️ {display_name}", 
+                callback_data=f"agent_detail {agent_id}"
+            ))
+            
+            # Add toggle button
             if agent_id in RUNNING_AGENTS:
                 row.append(InlineKeyboardButton(
-                    f"⏸ 停止 {display_name}", 
+                    "⏸", 
                     callback_data=f"agent_tgl {agent_id}"
                 ))
             else:
                 row.append(InlineKeyboardButton(
-                    f"▶️ 启动 {display_name}", 
+                    "▶️", 
                     callback_data=f"agent_tgl {agent_id}"
                 ))
             
+            # Add owners button
             row.append(InlineKeyboardButton(
-                f"👑 拥有者", 
+                "👑",
                 callback_data=f"agent_own {agent_id}"
             ))
             
+            # Add delete button
             row.append(InlineKeyboardButton(
-                f"🗑 删除", 
+                "🗑", 
                 callback_data=f"agent_del {agent_id}"
             ))
             buttons.append(row)

@@ -13,6 +13,7 @@ from telegram.ext import CallbackContext
 
 from mongo import agents, agent_withdrawals, user
 from bot import get_admin_ids
+from services.message_utils import safe_edit_message_text
 
 
 # ===== i18n Support =====
@@ -389,10 +390,10 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     # Build panel text
     name = agent.get('name', 'Unnamed Agent')
     # Format financial values to 2 decimal places
-    markup_usdt = Decimal(str(agent.get('markup_usdt', '0'))).quantize(Decimal('0.01'))
-    profit_available = Decimal(str(agent.get('profit_available_usdt', '0'))).quantize(Decimal('0.01'))
-    profit_frozen = Decimal(str(agent.get('profit_frozen_usdt', '0'))).quantize(Decimal('0.01'))
-    total_paid = Decimal(str(agent.get('total_paid_usdt', '0'))).quantize(Decimal('0.01'))
+    markup_usdt = float(Decimal(str(agent.get('markup_usdt', '0'))).quantize(Decimal('0.01')))
+    profit_available = float(Decimal(str(agent.get('profit_available_usdt', '0'))).quantize(Decimal('0.01')))
+    profit_frozen = float(Decimal(str(agent.get('profit_frozen_usdt', '0'))).quantize(Decimal('0.01')))
+    total_paid = float(Decimal(str(agent.get('total_paid_usdt', '0'))).quantize(Decimal('0.01')))
     
     # Get settings (new structure) - READ ONLY in child agents
     settings = agent.get('settings', {})
@@ -412,10 +413,10 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     text = f"""<b>{t(lang, 'agent_panel_title')} - {name}</b>
 
 <b>{t(lang, 'financial_overview')}</b>
-• {t(lang, 'markup_setting')}: {markup_usdt} USDT/件
-• {t(lang, 'available_balance')}: {profit_available} USDT
-• {t(lang, 'frozen_balance')}: {profit_frozen} USDT
-• {t(lang, 'total_paid')}: {total_paid} USDT
+• {t(lang, 'markup_setting')}: {markup_usdt:.2f} USDT/件
+• {t(lang, 'available_balance')}: {profit_available:.2f} USDT
+• {t(lang, 'frozen_balance')}: {profit_frozen:.2f} USDT
+• {t(lang, 'total_paid')}: {total_paid:.2f} USDT
 
 <b>{t(lang, 'contact_info')}</b>
 • {t(lang, 'customer_service')}: {customer_service}
@@ -427,24 +428,58 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
 {readonly_note}"""
     
     # Build keyboard - REMOVED contact editing buttons for child agents
-    keyboard = [
-        [
-            InlineKeyboardButton(t(lang, 'set_markup'), callback_data="agent_set_markup"),
-            InlineKeyboardButton(t(lang, 'initiate_withdrawal'), callback_data="agent_withdraw_init")
-        ],
-        [
-            InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns"),
-            InlineKeyboardButton(t(lang, 'business_report'), callback_data="agent_stats")
-        ],
-        [
-            InlineKeyboardButton(t(lang, 'send_test_notification'), callback_data="agent_test_notif"),
-            InlineKeyboardButton(t(lang, 'test_group_notification'), callback_data="agent_group_test")
-        ],
-        [InlineKeyboardButton(t(lang, 'close'), callback_data=f"close {update.effective_user.id}")]
-    ]
+    # Deduplicate buttons by tracking seen callback_data/url
+    seen_buttons = set()
+    keyboard = []
+    
+    # Row 1
+    row1 = []
+    btn1_data = "agent_set_markup"
+    if btn1_data not in seen_buttons:
+        row1.append(InlineKeyboardButton(t(lang, 'set_markup'), callback_data=btn1_data))
+        seen_buttons.add(btn1_data)
+    btn2_data = "agent_withdraw_init"
+    if btn2_data not in seen_buttons:
+        row1.append(InlineKeyboardButton(t(lang, 'initiate_withdrawal'), callback_data=btn2_data))
+        seen_buttons.add(btn2_data)
+    if row1:
+        keyboard.append(row1)
+    
+    # Row 2
+    row2 = []
+    btn3_data = "agent_links_btns"
+    if btn3_data not in seen_buttons:
+        row2.append(InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data=btn3_data))
+        seen_buttons.add(btn3_data)
+    btn4_data = "agent_stats"
+    if btn4_data not in seen_buttons:
+        row2.append(InlineKeyboardButton(t(lang, 'business_report'), callback_data=btn4_data))
+        seen_buttons.add(btn4_data)
+    if row2:
+        keyboard.append(row2)
+    
+    # Row 3
+    row3 = []
+    btn5_data = "agent_test_notif"
+    if btn5_data not in seen_buttons:
+        row3.append(InlineKeyboardButton(t(lang, 'send_test_notification'), callback_data=btn5_data))
+        seen_buttons.add(btn5_data)
+    btn6_data = "agent_group_test"
+    if btn6_data not in seen_buttons:
+        row3.append(InlineKeyboardButton(t(lang, 'test_group_notification'), callback_data=btn6_data))
+        seen_buttons.add(btn6_data)
+    if row3:
+        keyboard.append(row3)
+    
+    # Close button
+    close_data = f"close {update.effective_user.id}"
+    if close_data not in seen_buttons:
+        keyboard.append([InlineKeyboardButton(t(lang, 'close'), callback_data=close_data)])
+        seen_buttons.add(close_data)
     
     if is_callback:
-        update.callback_query.edit_message_text(
+        safe_edit_message_text(
+            update.callback_query,
             text=text,
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
@@ -466,7 +501,7 @@ def agent_panel_callback(update: Update, context: CallbackContext):
     lang = get_user_language(update, context)
     
     if not agent_id:
-        query.edit_message_text(t(lang, 'not_agent_bot'))
+        safe_edit_message_text(query, t(lang, 'not_agent_bot'))
         return
     
     agent = agents.find_one({'agent_id': agent_id})

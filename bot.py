@@ -92,7 +92,31 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 # ✅ 管理员配置统一使用 ID
-ADMIN_IDS = list(map(int, filter(None, os.getenv("ADMIN_IDS", "").split(","))))
+# Robust parsing: strip inline comments, ignore non-numeric items
+def _parse_admin_ids(admin_ids_str):
+    """Parse ADMIN_IDS with robust error handling.
+    
+    Strips inline # comments and ignores non-numeric items.
+    """
+    result = []
+    if not admin_ids_str:
+        return result
+    
+    # Remove inline comments (everything after #)
+    admin_ids_str = admin_ids_str.split('#')[0].strip()
+    
+    for item in admin_ids_str.split(','):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            result.append(int(item))
+        except ValueError:
+            logging.warning(f"Ignoring non-numeric ADMIN_ID: '{item}'")
+    
+    return result
+
+ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", ""))
 EASYPAY_PID = os.getenv("EASYPAY_PID")
 EASYPAY_KEY = os.getenv("EASYPAY_KEY")
 EASYPAY_GATEWAY = os.getenv("EASYPAY_GATEWAY")
@@ -11230,6 +11254,7 @@ def register_common_handlers(dispatcher, job_queue):
     # Import admin agents management handlers
     try:
         from admin.agents_admin import (
+            agent_panel_callback, agent_list_view_callback,
             agent_detail_callback, agent_settings_callback,
             admin_set_cs_callback, admin_set_official_callback,
             admin_set_restock_callback, admin_set_tutorial_callback,
@@ -11238,6 +11263,8 @@ def register_common_handlers(dispatcher, job_queue):
         )
         
         # Register admin agent management callbacks
+        dispatcher.add_handler(CallbackQueryHandler(agent_panel_callback, pattern='^agent_panel$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_list_view_callback, pattern='^agent_list_view$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_detail_callback, pattern='^agent_detail '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_settings_callback, pattern='^agent_settings '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(admin_set_cs_callback, pattern='^admin_set_cs '), group=-1)
