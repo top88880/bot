@@ -388,10 +388,11 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     
     # Build panel text
     name = agent.get('name', 'Unnamed Agent')
-    markup_usdt = agent.get('markup_usdt', '0')
-    profit_available = agent.get('profit_available_usdt', '0')
-    profit_frozen = agent.get('profit_frozen_usdt', '0')
-    total_paid = agent.get('total_paid_usdt', '0')
+    # Format financial values to 2 decimal places
+    markup_usdt = Decimal(str(agent.get('markup_usdt', '0'))).quantize(Decimal('0.01'))
+    profit_available = Decimal(str(agent.get('profit_available_usdt', '0'))).quantize(Decimal('0.01'))
+    profit_frozen = Decimal(str(agent.get('profit_frozen_usdt', '0'))).quantize(Decimal('0.01'))
+    total_paid = Decimal(str(agent.get('total_paid_usdt', '0'))).quantize(Decimal('0.01'))
     
     # Get settings (new structure) - READ ONLY in child agents
     settings = agent.get('settings', {})
@@ -430,9 +431,6 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
         [
             InlineKeyboardButton(t(lang, 'set_markup'), callback_data="agent_set_markup"),
             InlineKeyboardButton(t(lang, 'initiate_withdrawal'), callback_data="agent_withdraw_init")
-        ],
-        [
-            InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns")
         ],
         [
             InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns"),
@@ -1586,7 +1584,8 @@ def show_agent_stats_dashboard(
         # Get agent info
         agent_name = agent.get('name', 'N/A')
         bot_username = context.bot_data.get('bot_username', 'N/A')
-        markup_usdt = agent.get('markup_usdt', '0')
+        # Format markup to 2 decimal places
+        markup_usdt = Decimal(str(agent.get('markup_usdt', '0'))).quantize(Decimal('0.01'))
         
         # Calculate time filter
         now = datetime.now()
