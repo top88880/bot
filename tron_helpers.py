@@ -11,7 +11,7 @@ This module provides utilities for:
 import os
 import logging
 import time
-from decimal import Decimal, INVALID_OPERATION
+from decimal import Decimal, InvalidOperation
 from typing import Optional, Dict, List, Tuple
 from datetime import datetime, timedelta
 
@@ -85,7 +85,7 @@ def amount_from_sun(sun_amount: int) -> Decimal:
     """
     try:
         return Decimal(sun_amount) / USDT_UNIT
-    except (INVALID_OPERATION, Exception) as e:
+    except (InvalidOperation, Exception) as e:
         logging.error(f"Failed to convert sun amount {sun_amount}: {e}")
         return Decimal('0')
 
@@ -104,7 +104,7 @@ def amounts_match(amount1: Decimal, amount2: Decimal, tolerance: Decimal = AMOUN
     try:
         diff = abs(Decimal(amount1) - Decimal(amount2))
         return diff <= tolerance
-    except (INVALID_OPERATION, Exception) as e:
+    except (InvalidOperation, Exception) as e:
         logging.error(f"Failed to compare amounts {amount1} and {amount2}: {e}")
         return False
 
@@ -300,5 +300,5 @@ def format_usdt_amount(amount: Decimal) -> str:
     """
     try:
         return str(Decimal(amount).quantize(Decimal('0.000001')))
-    except (INVALID_OPERATION, Exception):
+    except (InvalidOperation, Exception):
         return "0.000000"
