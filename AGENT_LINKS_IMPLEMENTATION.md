@@ -93,7 +93,7 @@ Agent contact settings are stored in the `agents` collection:
 
 - **Main bot**: No changes in behavior - continues to use environment variables
 - **Existing agent bots**: If settings are not configured, fields show as unset (no fallback to main bot)
-- **Legacy `get_customer_service_link()` and `get_channel_link()` functions**: Still work but have been deprecated in favor of the new unified helpers
+- **Existing helper functions**: Functions like `get_customer_service_link()` and `get_channel_link()` in bot.py already implement agent-aware logic and continue to work. The new `bot_links.py` module provides additional formatting and unified access patterns.
 
 ## Out of Scope
 
