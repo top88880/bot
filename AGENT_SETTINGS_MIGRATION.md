@@ -145,11 +145,15 @@ If you have existing contact data in legacy fields, you can:
 - Analytics and reporting
 - Custom link buttons
 
-## Future Enhancements
-1. **Topic Groups Support**: Add `message_thread_id` parameter for sending notifications to specific topics in groups
-2. **Batch Settings**: Allow admins to apply settings to multiple agents at once
-3. **Settings Templates**: Create reusable templates for common configurations
-4. **Audit Log**: Track who changed what settings and when
+## Future Enhancements (Planned)
+The following features are **NOT** implemented in this release but are planned for future versions:
+
+1. **Topic Groups Support** (Not Implemented): Add `message_thread_id` parameter for sending notifications to specific topics in groups
+2. **Batch Settings** (Not Implemented): Allow admins to apply settings to multiple agents at once
+3. **Settings Templates** (Not Implemented): Create reusable templates for common configurations
+4. **Audit Log** (Not Implemented): Track who changed what settings and when
+
+**Note**: The current implementation includes extension points for these features (e.g., documented message_thread_id parameter) but does not implement them yet.
 
 ## Support
 For issues or questions:
