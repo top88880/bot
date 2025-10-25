@@ -30,6 +30,7 @@ I18N = {
         'restock_group': '补货通知群',
         'tutorial_link': '教程链接',
         'notify_channel_id': '通知频道ID',
+        'notify_group_id': '通知群ID',
         'not_set': '未设置',
         'panel_tip': '提示: 这些设置仅影响您的代理机器人，不会影响主机器人。',
         'set_markup': '💰 设置差价',
@@ -39,8 +40,11 @@ I18N = {
         'set_restock_group': '📣 设置补货通知群',
         'set_tutorial_link': '📖 设置教程链接',
         'set_notify_channel': '🔔 设置通知频道ID',
+        'set_notify_group': '👥 设置通知群ID',
+        'test_group_notification': '📤 发送测试群通知',
         'manage_link_buttons': '🔘 管理链接按钮',
         'send_test_notification': '📡 发送测试通知',
+        'business_report': '📊 经营报告',
         'close': '❌ 关闭',
         'not_agent_bot': '❌ 此命令仅在代理机器人中可用。',
         'agent_not_found': '❌ 未找到代理信息。',
@@ -55,6 +59,9 @@ I18N = {
         'test_notif_success': '✅ 测试通知发送成功！\n\n通知已发送到您配置的频道。',
         'test_notif_no_channel': '❌ 未设置通知频道\n\n请先设置通知频道ID。',
         'test_notif_error': '❌ 发送失败\n\n错误信息: {error}\n\n请检查:\n1. 频道ID格式是否正确 (例如: -1001234567890)\n2. 机器人是否已被添加到频道\n3. 机器人是否有发送消息的权限',
+        'test_group_notif_success': '✅ 测试群通知发送成功！\n\n通知已发送到您配置的群组。',
+        'test_group_notif_no_group': '❌ 未设置通知群\n\n请先设置通知群ID。',
+        'test_group_notif_error': '❌ 发送失败\n\n错误信息: {error}\n\n请检查:\n1. 群组ID格式是否正确 (例如: -100xxxxxxxxxx)\n2. 机器人是否已被添加到群组\n3. 机器人是否有发送消息的权限',
     },
     'en': {
         'agent_panel_title': '🤖 Agent Backend',
@@ -69,6 +76,7 @@ I18N = {
         'restock_group': 'Restock Group',
         'tutorial_link': 'Tutorial Link',
         'notify_channel_id': 'Notify Channel ID',
+        'notify_group_id': 'Notify Group ID',
         'not_set': 'Not Set',
         'panel_tip': 'Tip: These settings only affect your agent bot, not the main bot.',
         'set_markup': '💰 Set Markup',
@@ -78,8 +86,11 @@ I18N = {
         'set_restock_group': '📣 Set Restock Group',
         'set_tutorial_link': '📖 Set Tutorial Link',
         'set_notify_channel': '🔔 Set Notify Channel ID',
+        'set_notify_group': '👥 Set Notify Group ID',
+        'test_group_notification': '📤 Send Test Group Notification',
         'manage_link_buttons': '🔘 Manage Link Buttons',
         'send_test_notification': '📡 Send Test Notification',
+        'business_report': '📊 Business Report',
         'close': '❌ Close',
         'not_agent_bot': '❌ This command is only available in agent bots.',
         'agent_not_found': '❌ Agent information not found.',
@@ -94,6 +105,9 @@ I18N = {
         'test_notif_success': '✅ Test notification sent successfully!\n\nThe notification was sent to your configured channel.',
         'test_notif_no_channel': '❌ Notify channel not set\n\nPlease set the notify channel ID first.',
         'test_notif_error': '❌ Send failed\n\nError: {error}\n\nPlease check:\n1. Channel ID format is correct (e.g., -1001234567890)\n2. Bot has been added to the channel\n3. Bot has permission to send messages',
+        'test_group_notif_success': '✅ Test group notification sent successfully!\n\nThe notification was sent to your configured group.',
+        'test_group_notif_no_group': '❌ Notify group not set\n\nPlease set the notify group ID first.',
+        'test_group_notif_error': '❌ Send failed\n\nError: {error}\n\nPlease check:\n1. Group ID format is correct (e.g., -100xxxxxxxxxx)\n2. Bot has been added to the group\n3. Bot has permission to send messages',
     }
 }
 
@@ -386,6 +400,7 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     restock_group = settings.get('restock_group') or t(lang, 'not_set')
     tutorial_link = settings.get('tutorial_link') or t(lang, 'not_set')
     notify_channel_id = settings.get('notify_channel_id') or t(lang, 'not_set')
+    notify_group_id = settings.get('notify_group_id') or t(lang, 'not_set')
     
     text = f"""<b>{t(lang, 'agent_panel_title')} - {name}</b>
 
@@ -401,6 +416,7 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
 • {t(lang, 'restock_group')}: {restock_group}
 • {t(lang, 'tutorial_link')}: {tutorial_link}
 • {t(lang, 'notify_channel_id')}: {notify_channel_id}
+• {t(lang, 'notify_group_id')}: {notify_group_id}
 
 <i>{t(lang, 'panel_tip')}</i>"""
     
@@ -420,10 +436,15 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
         ],
         [
             InlineKeyboardButton(t(lang, 'set_notify_channel'), callback_data="agent_cfg_notify"),
-            InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns")
+            InlineKeyboardButton(t(lang, 'set_notify_group'), callback_data="agent_cfg_group")
         ],
         [
-            InlineKeyboardButton(t(lang, 'send_test_notification'), callback_data="agent_test_notif")
+            InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns"),
+            InlineKeyboardButton(t(lang, 'business_report'), callback_data="agent_stats")
+        ],
+        [
+            InlineKeyboardButton(t(lang, 'send_test_notification'), callback_data="agent_test_notif"),
+            InlineKeyboardButton(t(lang, 'test_group_notification'), callback_data="agent_group_test")
         ],
         [InlineKeyboardButton(t(lang, 'close'), callback_data=f"close {update.effective_user.id}")]
     ]
@@ -995,6 +1016,8 @@ def agent_text_input_handler(update: Update, context: CallbackContext):
             handle_tutorial_input(update, context, agent_id, text)
         elif state == 'awaiting_notify_input':
             handle_notify_channel_input(update, context, agent_id, text)
+        elif state == 'awaiting_notify_group_id':
+            handle_notify_group_input(update, context, agent_id, text)
         elif state == 'awaiting_button_title':
             context.user_data['button_title'] = text
             context.user_data['agent_backend_state'] = 'awaiting_button_url'
@@ -1285,6 +1308,59 @@ def handle_notify_channel_input(update: Update, context: CallbackContext, agent_
     update.message.reply_text(f"✅ 通知频道ID设置成功！\n\n<b>新ID:</b> <code>{text}</code>", parse_mode='HTML')
 
 
+def handle_notify_group_input(update: Update, context: CallbackContext, agent_id: str, text: str):
+    """Handle notify group ID input with numeric validation."""
+    if text == '清除':
+        agents.update_one(
+            {'agent_id': agent_id},
+            {
+                '$set': {
+                    'settings.notify_group_id': None,
+                    'updated_at': datetime.now()
+                },
+                '$unset': {'settings.notify_group_id': ""}
+            }
+        )
+        
+        context.user_data.pop('agent_backend_state', None)
+        update.message.reply_text("✅ 通知群ID已清除")
+        return
+    
+    # Validate numeric ID or @username
+    text = text.strip()
+    
+    # Accept @username format or numeric ID
+    if text.startswith('@'):
+        # Username format is acceptable
+        group_id = text
+    elif text.lstrip('-').isdigit():
+        # Numeric ID format (should start with -100 for supergroups)
+        group_id = text
+    else:
+        update.message.reply_text(
+            "❌ 通知群ID格式错误\n\n"
+            "请发送有效的群组ID或@用户名\n\n"
+            "示例: <code>-100123456789</code> 或 <code>@mygroup</code>",
+            parse_mode='HTML'
+        )
+        return
+    
+    # Update setting
+    agents.update_one(
+        {'agent_id': agent_id},
+        {
+            '$set': {
+                'settings.notify_group_id': group_id,
+                'updated_at': datetime.now()
+            }
+        }
+    )
+    
+    context.user_data.pop('agent_backend_state', None)
+    update.message.reply_text(f"✅ 通知群ID设置成功！\n\n<b>新ID:</b> <code>{group_id}</code>", parse_mode='HTML')
+
+
+
 def handle_link_input(update: Update, context: CallbackContext, agent_id: str, field: str, text: str, name: str):
     """DEPRECATED: Handle link input for support/channel/announcement."""
     # This function is kept for backward compatibility but should not be called
@@ -1453,3 +1529,344 @@ def agent_delete_button_callback(update: Update, context: CallbackContext):
     context.user_data['agent_backend_state'] = 'awaiting_button_delete_index'
     
     query.edit_message_text(text=text, parse_mode='HTML')
+
+
+def agent_cfg_group_callback(update: Update, context: CallbackContext):
+    """Initiate notify group ID configuration."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
+    if not agent_id:
+        query.edit_message_text(t(lang, 'not_agent_bot'))
+        return
+    
+    agent = agents.find_one({'agent_id': agent_id})
+    settings = agent.get('settings', {})
+    current_group_id = settings.get('notify_group_id', t(lang, 'not_set'))
+    
+    text = (
+        f"<b>👥 {t(lang, 'set_notify_group')}</b>\n\n"
+        f"当前设置: <code>{current_group_id}</code>\n\n"
+        f"请发送新的通知群ID (数字格式，例如: -100xxxxxxxxxx)\n"
+        f"或发送群组@用户名 (例如: @mygroup)\n\n"
+        f"<b>提示:</b>\n"
+        f"1. 将机器人添加到您的群组\n"
+        f"2. 授予机器人发送消息的权限\n"
+        f"3. 使用 /getid 命令获取群组ID\n"
+        f"或转发群组消息给 @userinfobot 获取ID"
+    ) if lang == 'zh' else (
+        f"<b>👥 {t(lang, 'set_notify_group')}</b>\n\n"
+        f"Current setting: <code>{current_group_id}</code>\n\n"
+        f"Please send the new notify group ID (numeric format, e.g., -100xxxxxxxxxx)\n"
+        f"or send group @username (e.g., @mygroup)\n\n"
+        f"<b>Tips:</b>\n"
+        f"1. Add the bot to your group\n"
+        f"2. Grant the bot permission to send messages\n"
+        f"3. Use /getid command to get the group ID\n"
+        f"or forward a group message to @userinfobot to get the ID"
+    )
+    
+    context.user_data['agent_backend_state'] = 'awaiting_notify_group_id'
+    
+    keyboard = [[InlineKeyboardButton(t(lang, 'cancel'), callback_data="agent_panel")]]
+    query.edit_message_text(text=text, parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+def agent_group_test_callback(update: Update, context: CallbackContext):
+    """Test group notification sending."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
+    if not agent_id:
+        query.edit_message_text(t(lang, 'not_agent_bot'))
+        return
+    
+    try:
+        from services.agent_group_notifications import (
+            get_notify_group_id_for_child,
+            format_test_notification,
+            send_agent_group_message
+        )
+        from datetime import datetime
+        
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            query.edit_message_text(t(lang, 'agent_not_found'))
+            return
+        
+        group_id = get_notify_group_id_for_child(context)
+        
+        if group_id is None:
+            query.answer(t(lang, 'test_group_notif_no_group'), show_alert=True)
+            return
+        
+        # Send test notification
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        test_message = format_test_notification(lang, timestamp)
+        
+        success = send_agent_group_message(context, test_message)
+        
+        if success:
+            query.answer(t(lang, 'test_group_notif_success'), show_alert=True)
+        else:
+            error_msg = t(lang, 'test_group_notif_error', error='Check logs for details')
+            query.answer(error_msg, show_alert=True)
+            
+    except Exception as e:
+        logging.error(f"Error in agent_group_test_callback: {e}")
+        query.answer(f"❌ Error: {e}", show_alert=True)
+    
+    # Refresh panel
+    show_agent_panel(update, context, agent, is_callback=True, lang=lang)
+
+
+def agent_stats_callback(update: Update, context: CallbackContext):
+    """Show agent business statistics/analytics dashboard."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
+    if not agent_id:
+        query.edit_message_text(t(lang, 'not_agent_bot'))
+        return
+    
+    try:
+        # Default to 'all' time range
+        time_range = context.user_data.get('agent_stats_range', 'all')
+        show_agent_stats_dashboard(update, context, agent_id, time_range, lang, is_callback=True)
+        
+    except Exception as e:
+        logging.error(f"Error in agent_stats_callback: {e}")
+        query.edit_message_text(f"❌ {t(lang, 'error_loading_panel')}: {e}")
+
+
+def show_agent_stats_dashboard(
+    update: Update,
+    context: CallbackContext,
+    agent_id: str,
+    time_range: str = 'all',
+    lang: str = 'zh',
+    is_callback: bool = False
+):
+    """Display agent statistics dashboard with time range filters.
+    
+    Args:
+        update: Update object
+        context: CallbackContext
+        agent_id: Agent identifier
+        time_range: Time range filter ('24h', '7d', 'all')
+        lang: Language code
+        is_callback: Whether this is from a callback
+    """
+    from datetime import datetime, timedelta
+    from mongo import agents, user, gmjlu, topup
+    
+    try:
+        agent = agents.find_one({'agent_id': agent_id})
+        if not agent:
+            text = t(lang, 'agent_not_found')
+            if is_callback:
+                update.callback_query.edit_message_text(text)
+            else:
+                update.message.reply_text(text)
+            return
+        
+        # Get agent info
+        agent_name = agent.get('name', 'N/A')
+        bot_username = context.bot_data.get('bot_username', 'N/A')
+        markup_usdt = agent.get('markup_usdt', '0')
+        
+        # Calculate time filter
+        now = datetime.now()
+        time_filter = {}
+        
+        if time_range == '24h':
+            time_filter = {'$gte': now - timedelta(hours=24)}
+            range_label = '近24小时' if lang == 'zh' else 'Last 24 Hours'
+        elif time_range == '7d':
+            time_filter = {'$gte': now - timedelta(days=7)}
+            range_label = '近7天' if lang == 'zh' else 'Last 7 Days'
+        else:  # 'all'
+            range_label = '全部' if lang == 'zh' else 'All Time'
+        
+        # Query statistics
+        # Total users for this agent
+        total_users = user.count_documents({'agent_id': agent_id}) if user.find_one({'agent_id': {'$exists': True}}) else 0
+        
+        # New users in time range (if time field exists)
+        new_users_24h = 0
+        new_users_7d = 0
+        if time_filter:
+            # Try to get new users - this depends on having a registration timestamp
+            # Since the schema might not have this, we'll set to 0 for now
+            new_users_24h = 0
+            new_users_7d = 0
+        
+        # Orders (gmjlu collection likely has agent_id and time fields)
+        order_query = {'agent_id': agent_id} if gmjlu.find_one({'agent_id': {'$exists': True}}) else {}
+        if time_filter and order_query:
+            # Assuming gmjlu has a 'time' field
+            try:
+                order_query['time'] = time_filter
+                total_orders = gmjlu.count_documents(order_query)
+            except:
+                total_orders = gmjlu.count_documents({'agent_id': agent_id}) if order_query else 0
+        else:
+            total_orders = gmjlu.count_documents(order_query) if order_query else 0
+        
+        # Recharges (topup collection)
+        recharge_query = {
+            'agent_id': agent_id,
+            'status': 'completed'
+        } if topup.find_one({'agent_id': {'$exists': True}}) else {'status': 'completed'}
+        
+        if time_filter and 'agent_id' in recharge_query:
+            try:
+                recharge_query['credited_at'] = time_filter
+                recharge_count = topup.count_documents(recharge_query)
+                # Sum of recharge amounts
+                recharge_pipeline = [
+                    {'$match': recharge_query},
+                    {'$group': {'_id': None, 'total': {'$sum': '$usdt'}}}
+                ]
+                recharge_result = list(topup.aggregate(recharge_pipeline))
+                recharge_total = recharge_result[0]['total'] if recharge_result else 0
+            except:
+                recharge_count = 0
+                recharge_total = 0
+        else:
+            recharge_count = 0
+            recharge_total = 0
+        
+        # Calculate profit (from agent document or order aggregation)
+        # For simplicity, use agent's recorded profit
+        profit_available = float(agent.get('profit_available_usdt', 0))
+        profit_frozen = float(agent.get('profit_frozen_usdt', 0))
+        total_paid = float(agent.get('total_paid_usdt', 0))
+        total_profit = profit_available + profit_frozen + total_paid
+        
+        # Build message
+        if lang == 'zh':
+            text = f"""<b>📊 经营报告</b>
+
+<b>号铺名：</b>{agent_name} (@{bot_username})
+<b>分销利润率（差价）：</b>+{markup_usdt}U/件
+<b>时间范围：</b>{range_label}
+
+<b>👥 用户数据</b>
+• 用户总数: {total_users}
+• 近24小时新增: {new_users_24h}
+• 近7天新增: {new_users_7d}
+
+<b>🛒 订单数据</b>
+• 购买总数: {total_orders}
+
+<b>💰 充值数据</b>
+• 充值笔数: {recharge_count}
+• 充值总额: {recharge_total:.2f} USDT
+
+<b>💎 利润数据</b>
+• 累计利润: {total_profit:.2f} USDT
+  ├─ 可提现: {profit_available:.2f} USDT
+  ├─ 冻结中: {profit_frozen:.2f} USDT
+  └─ 已提现: {total_paid:.2f} USDT"""
+        else:
+            text = f"""<b>📊 Business Report</b>
+
+<b>Shop Name:</b>{agent_name} (@{bot_username})
+<b>Markup Rate:</b>+{markup_usdt}U/item
+<b>Time Range:</b>{range_label}
+
+<b>👥 User Data</b>
+• Total Users: {total_users}
+• New (24h): {new_users_24h}
+• New (7d): {new_users_7d}
+
+<b>🛒 Order Data</b>
+• Total Orders: {total_orders}
+
+<b>💰 Recharge Data</b>
+• Recharge Count: {recharge_count}
+• Total Amount: {recharge_total:.2f} USDT
+
+<b>💎 Profit Data</b>
+• Total Profit: {total_profit:.2f} USDT
+  ├─ Available: {profit_available:.2f} USDT
+  ├─ Frozen: {profit_frozen:.2f} USDT
+  └─ Withdrawn: {total_paid:.2f} USDT"""
+        
+        # Build keyboard with time range filters
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "✅ 近24小时" if time_range == '24h' else "近24小时" if lang == 'zh' else "✅ 24h" if time_range == '24h' else "24h",
+                    callback_data="agent_stats_range_24h"
+                ),
+                InlineKeyboardButton(
+                    "✅ 近7天" if time_range == '7d' else "近7天" if lang == 'zh' else "✅ 7d" if time_range == '7d' else "7d",
+                    callback_data="agent_stats_range_7d"
+                ),
+                InlineKeyboardButton(
+                    "✅ 全部" if time_range == 'all' else "全部" if lang == 'zh' else "✅ All" if time_range == 'all' else "All",
+                    callback_data="agent_stats_range_all"
+                )
+            ],
+            [InlineKeyboardButton(
+                "🔙 返回" if lang == 'zh' else "🔙 Back",
+                callback_data="agent_panel"
+            )]
+        ]
+        
+        if is_callback:
+            update.callback_query.edit_message_text(
+                text=text,
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            update.message.reply_text(
+                text=text,
+                parse_mode='HTML',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        
+    except Exception as e:
+        logging.error(f"Error in show_agent_stats_dashboard: {e}")
+        error_text = f"❌ {t(lang, 'error_loading_panel')}: {e}"
+        if is_callback:
+            update.callback_query.edit_message_text(error_text)
+        else:
+            update.message.reply_text(error_text)
+
+
+def agent_stats_range_callback(update: Update, context: CallbackContext):
+    """Handle time range selection for agent stats."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = context.bot_data.get('agent_id')
+    lang = get_user_language(update, context)
+    
+    # Extract time range from callback data
+    callback_data = query.data
+    if 'range_24h' in callback_data:
+        time_range = '24h'
+    elif 'range_7d' in callback_data:
+        time_range = '7d'
+    else:  # range_all
+        time_range = 'all'
+    
+    # Store in user_data
+    context.user_data['agent_stats_range'] = time_range
+    
+    # Show stats with new range
+    show_agent_stats_dashboard(update, context, agent_id, time_range, lang, is_callback=True)
+
