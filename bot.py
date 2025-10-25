@@ -1475,6 +1475,7 @@ def show_admin_panel(update: Update, context: CallbackContext, user_id: int):
         InlineKeyboardButton('用户私发', callback_data='sifa'),
         InlineKeyboardButton('设置充值地址', callback_data='settrc20'),
         InlineKeyboardButton('商品管理', callback_data='spgli'),
+        InlineKeyboardButton('TRC20 支付管理', callback_data='trc20_admin'),
         InlineKeyboardButton('修改欢迎语', callback_data='startupdate'),
         InlineKeyboardButton('设置菜单按钮', callback_data='addzdykey'),
         InlineKeyboardButton('收益说明', callback_data='shouyishuoming'),
@@ -4781,6 +4782,7 @@ def backstart(update: Update, context: CallbackContext):
 
     admin_buttons_raw = [
         InlineKeyboardButton('用户列表', callback_data='yhlist'),
+        InlineKeyboardButton('TRC20 支付管理', callback_data='trc20_admin'),
         InlineKeyboardButton('用户私发', callback_data='sifa'),
         InlineKeyboardButton('设置充值地址', callback_data='settrc20'),
         InlineKeyboardButton('商品管理', callback_data='spgli'),
@@ -6258,6 +6260,212 @@ def settrc20(update: Update, context: CallbackContext):
     keyboard = [[InlineKeyboardButton('取消', callback_data=f'close {user_id}')]]
     user.update_one({'user_id': user_id}, {"$set": {"sign": 'settrc20'}})
     context.bot.send_message(chat_id=user_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+def trc20_admin_panel(update: Update, context: CallbackContext):
+    """TRC20 payment management admin panel."""
+    query = update.callback_query
+    query.answer()
+    user_id = query.from_user.id
+    
+    # Check admin permission
+    if user_id not in get_admin_ids():
+        query.edit_message_text("❌ 权限不足")
+        return
+    
+    text = """🔐 <b>TRC20 支付管理</b>
+
+<b>功能:</b>
+• 按交易ID重新扫描
+• 按订单号重新扫描  
+• 扫描所有待处理订单
+• 查看待处理订单统计
+
+<i>重新扫描可以帮助处理遗漏的支付</i>
+"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🔍 按交易ID扫描", callback_data="trc20_rescan_txid")],
+        [InlineKeyboardButton("📋 按订单号扫描", callback_data="trc20_rescan_order")],
+        [InlineKeyboardButton("🔄 扫描所有待处理", callback_data="trc20_scan_all")],
+        [InlineKeyboardButton("📊 待处理统计", callback_data="trc20_pending_stats")],
+        [InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")]
+    ]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def trc20_rescan_txid_prompt(update: Update, context: CallbackContext):
+    """Prompt for TXID to rescan."""
+    query = update.callback_query
+    query.answer()
+    user_id = query.from_user.id
+    
+    if user_id not in get_admin_ids():
+        query.edit_message_text("❌ 权限不足")
+        return
+    
+    text = """🔍 <b>按交易ID重新扫描</b>
+
+请发送 TRON 交易ID (TXID)
+
+<i>示例: 7c9d8...</i>
+"""
+    
+    keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="trc20_admin")]]
+    
+    # Set sign to trigger input handler
+    user.update_one({'user_id': user_id}, {"$set": {'sign': 'trc20_rescan_txid'}})
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def trc20_rescan_order_prompt(update: Update, context: CallbackContext):
+    """Prompt for order ID to rescan."""
+    query = update.callback_query
+    query.answer()
+    user_id = query.from_user.id
+    
+    if user_id not in get_admin_ids():
+        query.edit_message_text("❌ 权限不足")
+        return
+    
+    text = """📋 <b>按订单号重新扫描</b>
+
+请发送订单号 (bianhao)
+
+<i>示例: CZ202...</i>
+"""
+    
+    keyboard = [[InlineKeyboardButton("🚫 取消", callback_data="trc20_admin")]]
+    
+    # Set sign to trigger input handler
+    user.update_one({'user_id': user_id}, {"$set": {'sign': 'trc20_rescan_order'}})
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def trc20_scan_all_orders(update: Update, context: CallbackContext):
+    """Scan all pending orders and try to match payments."""
+    query = update.callback_query
+    query.answer()
+    user_id = query.from_user.id
+    
+    if user_id not in get_admin_ids():
+        query.edit_message_text("❌ 权限不足")
+        return
+    
+    # Show processing message
+    query.edit_message_text("⏳ <b>正在扫描待处理订单...</b>", parse_mode='HTML')
+    
+    try:
+        from trc20_processor import payment_processor
+        summary = payment_processor.scan_pending_orders()
+        
+        text = f"""✅ <b>扫描完成</b>
+
+📊 <b>统计:</b>
+• 总订单: {summary['total']}
+• 已处理: {summary['credited']}
+• 待处理: {summary['pending']}
+• 已过期: {summary['expired']}
+• 失败: {summary['failed']}
+"""
+        
+        keyboard = [[InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")]]
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error scanning orders: {e}")
+        query.edit_message_text(
+            f"❌ <b>扫描失败</b>\n\n错误: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")
+            ]])
+        )
+
+
+def trc20_pending_stats(update: Update, context: CallbackContext):
+    """Show statistics for pending orders."""
+    query = update.callback_query
+    query.answer()
+    user_id = query.from_user.id
+    
+    if user_id not in get_admin_ids():
+        query.edit_message_text("❌ 权限不足")
+        return
+    
+    try:
+        # Count pending orders
+        pending_count = topup.count_documents({
+            'status': 'pending',
+            'cz_type': 'usdt'
+        })
+        
+        # Count completed orders (last 24h)
+        from datetime import datetime, timedelta
+        yesterday = datetime.now() - timedelta(days=1)
+        completed_count = topup.count_documents({
+            'status': 'completed',
+            'cz_type': 'usdt',
+            'credited_at': {'$gte': yesterday}
+        })
+        
+        # Get total pending amount
+        pending_orders = list(topup.find({
+            'status': 'pending',
+            'cz_type': 'usdt'
+        }))
+        total_pending = sum(float(o.get('money', 0)) for o in pending_orders)
+        
+        text = f"""📊 <b>TRC20 订单统计</b>
+
+⏳ <b>待处理订单:</b> {pending_count}
+💰 <b>待处理金额:</b> {standard_num(total_pending)} USDT
+
+✅ <b>最近24h完成:</b> {completed_count}
+
+<i>更新时间: {datetime.now().strftime('%H:%M:%S')}</i>
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("🔄 刷新", callback_data="trc20_pending_stats")],
+            [InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")]
+        ]
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error getting stats: {e}")
+        query.edit_message_text(
+            f"❌ <b>获取统计失败</b>\n\n错误: {str(e)}",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")
+            ]])
+        )
 
 
 def startupdate(update: Update, context: CallbackContext):
@@ -8304,6 +8512,65 @@ def textkeyboard(update: Update, context: CallbackContext):
                         img.save(f)
                     user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
                     context.bot.send_message(chat_id=user_id, text=f'当前充值地址为: {text}', parse_mode='HTML')
+                
+                elif sign == 'trc20_rescan_txid':
+                    # Handle TRC20 rescan by TXID
+                    txid = text.strip()
+                    user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                    
+                    try:
+                        from trc20_processor import payment_processor
+                        success, message = payment_processor.rescan_by_txid(txid)
+                        
+                        if success:
+                            result_text = f"✅ <b>扫描成功</b>\n\n{message}"
+                        else:
+                            result_text = f"❌ <b>扫描失败</b>\n\n{message}"
+                        
+                        keyboard = [[InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")]]
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=result_text,
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                    except Exception as e:
+                        logging.error(f"Error rescanning txid: {e}")
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=f"❌ <b>处理失败</b>\n\n错误: {str(e)}",
+                            parse_mode='HTML'
+                        )
+                
+                elif sign == 'trc20_rescan_order':
+                    # Handle TRC20 rescan by order ID
+                    order_id = text.strip()
+                    user.update_one({'user_id': user_id}, {"$set": {'sign': 0}})
+                    
+                    try:
+                        from trc20_processor import payment_processor
+                        success, message = payment_processor.rescan_by_order(order_id)
+                        
+                        if success:
+                            result_text = f"✅ <b>扫描成功</b>\n\n{message}"
+                        else:
+                            result_text = f"❌ <b>扫描失败</b>\n\n{message}"
+                        
+                        keyboard = [[InlineKeyboardButton("🔙 返回", callback_data="trc20_admin")]]
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=result_text,
+                            parse_mode='HTML',
+                            reply_markup=InlineKeyboardMarkup(keyboard)
+                        )
+                    except Exception as e:
+                        logging.error(f"Error rescanning order: {e}")
+                        context.bot.send_message(
+                            chat_id=user_id,
+                            text=f"❌ <b>处理失败</b>\n\n错误: {str(e)}",
+                            parse_mode='HTML'
+                        )
+                
                 elif 'setkeyname' in sign:
                     qudata = sign.replace('setkeyname ', '')
                     qudataall = qudata.split(':')
@@ -10872,6 +11139,17 @@ def register_common_handlers(dispatcher, job_queue):
         logging.info("✅ Admin withdrawal commands and button handlers registered")
     except ImportError as e:
         logging.warning(f"Could not import admin withdrawal commands: {e}")
+    
+    # Register TRC20 payment admin handlers with group=-1
+    try:
+        dispatcher.add_handler(CallbackQueryHandler(trc20_admin_panel, pattern='^trc20_admin$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(trc20_rescan_txid_prompt, pattern='^trc20_rescan_txid$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(trc20_rescan_order_prompt, pattern='^trc20_rescan_order$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(trc20_scan_all_orders, pattern='^trc20_scan_all$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(trc20_pending_stats, pattern='^trc20_pending_stats$'), group=-1)
+        logging.info("✅ TRC20 admin handlers registered")
+    except Exception as e:
+        logging.warning(f"Could not register TRC20 admin handlers: {e}")
     
     dispatcher.add_handler(CommandHandler('start', start, run_async=True))
     dispatcher.add_handler(CommandHandler('help', help_command, run_async=True))

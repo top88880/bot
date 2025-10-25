@@ -130,6 +130,13 @@ def callback(ch, method, properties, body) -> None:
                             if message_data['to_address'] in address_list:
                                 qukuai.insert_one(message_data)
                                 logging.info(f"✅ 成功入库 USDT 交易: {message_data}")
+                                
+                                # Try to process and credit the order
+                                try:
+                                    from trc20_processor import payment_processor
+                                    payment_processor.process_transaction_from_qukuai(message_data)
+                                except Exception as e:
+                                    logging.error(f"Failed to process payment: {e}")
 
     except (AMQPError, ChannelClosedByBroker) as e:
         logging.error(f"❌ MQ 接收失败: {e}")
