@@ -7207,6 +7207,65 @@ def dabaohao(context, user_id, folder_names, leixing, nowuid, erjiprojectname, f
     # Record agent profit after successful order
     if order_doc:
         record_agent_profit(context, order_doc)
+        
+        # Send agent group notification if this is an agent bot
+        try:
+            agent_id = context.bot_data.get('agent_id')
+            if agent_id:
+                from services.agent_group_notifications import send_order_group_notification
+                
+                # Get user info
+                user_doc = user.find_one({'user_id': user_id})
+                user_lang = user_doc.get('lang', 'zh') if user_doc else 'zh'
+                
+                # Get product pricing info
+                ejfl_doc = ejfl.find_one({'nowuid': nowuid})
+                base_price = Decimal(str(ejfl_doc.get('money', 0))) if ejfl_doc else Decimal('0')
+                
+                # Get agent markup
+                agent_markup = get_agent_markup_usdt(context)
+                agent_price = base_price + agent_markup
+                
+                # Calculate totals
+                unit_price = float(agent_price)
+                profit_per_item = float(agent_markup)
+                order_total = unit_price * count
+                profit_total = profit_per_item * count
+                
+                # Get balances if available
+                before_balance = user_doc.get('USDT', 0) + order_total if user_doc else 0
+                after_balance = user_doc.get('USDT', 0) if user_doc else 0
+                
+                # Get bot username
+                bot_username = context.bot_data.get('bot_username', 'bot')
+                
+                # Get product name (category/product)
+                yijiid = ejfl_doc.get('uid') if ejfl_doc else None
+                yiji_doc = fenlei.find_one({'uid': yijiid}) if yijiid else None
+                category_name = yiji_doc.get('projectname', '') if yiji_doc else ''
+                product_name_full = f"{category_name}/{erjiprojectname}" if category_name else erjiprojectname
+                
+                # Prepare order notification data
+                order_data = {
+                    'agent_bot_username': bot_username,
+                    'order_sn': bianhao,
+                    'profit_per_item': f"{profit_per_item:.2f}",
+                    'ts': timer,
+                    'buyer_id': user_id,
+                    'product_name': product_name_full,
+                    'qty': count,
+                    'order_total': f"{order_total:.2f}",
+                    'unit_price': f"{unit_price:.2f}",
+                    'agent_price': f"{unit_price:.2f}",
+                    'base_price': f"{float(base_price):.2f}",
+                    'before_balance': f"{before_balance:.2f}",
+                    'after_balance': f"{after_balance:.2f}",
+                    'profit_total': f"{profit_total:.2f}"
+                }
+                
+                send_order_group_notification(context, order_data, user_lang)
+        except Exception as notif_error:
+            logging.error(f"Failed to send agent group order notification: {notif_error}")
 
 
 
@@ -10650,6 +10709,27 @@ def jiexi(context: CallbackContext):
                 except:
                     continue
 
+            # Send agent group notification if this is an agent bot
+            try:
+                agent_id = context.bot_data.get('agent_id')
+                if agent_id:
+                    from services.agent_group_notifications import send_recharge_group_notification
+                    
+                    # Get user language for notification
+                    user_lang = user_list.get('lang', 'zh')
+                    
+                    # Prepare recharge notification data
+                    recharge_data = {
+                        'buyer_name': f"<a href='tg://user?id={user_id}'>{fullname}</a>" if fullname != '无' else str(user_id),
+                        'address': from_address,
+                        'amount': today_money,
+                        'tx_url_or_cmd': f"<a href='https://tronscan.org/#/transaction/{txid}'>查看交易</a>"
+                    }
+                    
+                    send_recharge_group_notification(context, recharge_data, user_lang)
+            except Exception as notif_error:
+                logging.error(f"Failed to send agent group recharge notification: {notif_error}")
+
             # 删除订单消息，更新订单状态为成功
             existing_order = topup.find_one({'user_id': user_id, 'status': 'pending'})
             if existing_order:
@@ -11085,7 +11165,9 @@ def register_common_handlers(dispatcher, job_queue):
             agent_cfg_cs_callback, agent_cfg_official_callback,
             agent_cfg_restock_callback, agent_cfg_tutorial_callback,
             agent_cfg_notify_callback, agent_links_btns_callback,
-            agent_test_notif_callback
+            agent_test_notif_callback, agent_cfg_group_callback,
+            agent_group_test_callback, agent_stats_callback,
+            agent_stats_range_callback
         )
         
         # Register agent backend command and callbacks (use group=-1 for priority)
@@ -11106,6 +11188,11 @@ def register_common_handlers(dispatcher, job_queue):
         dispatcher.add_handler(CallbackQueryHandler(agent_cfg_restock_callback, pattern='^agent_cfg_restock$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_cfg_tutorial_callback, pattern='^agent_cfg_tutorial$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_cfg_notify_callback, pattern='^agent_cfg_notify$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_cfg_group_callback, pattern='^agent_cfg_group$'), group=-1)
+        # Group notification and stats handlers
+        dispatcher.add_handler(CallbackQueryHandler(agent_group_test_callback, pattern='^agent_group_test$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_stats_callback, pattern='^agent_stats$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_stats_range_callback, pattern='^agent_stats_range_'), group=-1)
         # Link buttons management
         dispatcher.add_handler(CallbackQueryHandler(agent_links_btns_callback, pattern='^agent_links_btns$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_manage_buttons_callback, pattern='^agent_manage_buttons$'), group=-1)
@@ -11349,6 +11436,15 @@ def start_bot_with_token(token, enable_agent_system=True, agent_context=None):
         dispatcher.bot_data['agent_id'] = agent_context.get('agent_id')
         dispatcher.bot_data['owner_user_id'] = agent_context.get('owner_user_id')
         logging.info(f"  Stored agent_id in bot_data: {agent_context.get('agent_id')}")
+    
+    # Cache bot username for notifications
+    try:
+        bot_info = updater.bot.get_me()
+        dispatcher.bot_data["bot_username"] = bot_info.username
+        logging.info(f"Cached bot username: @{bot_info.username}")
+    except Exception as e:
+        logging.warning(f"Failed to cache bot username: {e}")
+        dispatcher.bot_data["bot_username"] = "bot"
     
     # Register all common handlers
     register_common_handlers(dispatcher, updater.job_queue)

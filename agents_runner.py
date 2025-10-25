@@ -93,6 +93,15 @@ def start_agent_bot(agent_id: str, agent_doc: dict) -> bool:
         dispatcher.bot_data["agent"] = agent_doc
         dispatcher.bot_data["agent_id"] = agent_id
         
+        # Cache bot username for notifications
+        try:
+            bot_info = updater.bot.get_me()
+            dispatcher.bot_data["bot_username"] = bot_info.username
+            logging.info(f"Cached bot username for agent {agent_id}: @{bot_info.username}")
+        except Exception as e:
+            logging.warning(f"Failed to cache bot username for agent {agent_id}: {e}")
+            dispatcher.bot_data["bot_username"] = "bot"
+        
         logging.info(
             f"Initialized agent bot {agent_id} with tenant context: {tenant}"
         )
