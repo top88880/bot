@@ -64,6 +64,7 @@ COUNTRY_DATA = {
 
 
 # Build reverse lookup indexes
+# Note: _PHONE_TO_ISO maps to a list of ISOs since multiple countries can share a phone code
 _PHONE_TO_ISO = {}
 _ZH_NAME_TO_ISO = {}
 _EN_NAME_TO_ISO = {}
@@ -71,7 +72,11 @@ _ZH_ALIAS_TO_ISO = {}
 _EN_ALIAS_TO_ISO = {}
 
 for iso, (phone, zh_name, en_name, zh_aliases, en_aliases) in COUNTRY_DATA.items():
-    _PHONE_TO_ISO[phone] = iso
+    # Handle multiple countries with same phone code (e.g., US and CA both use '1')
+    if phone not in _PHONE_TO_ISO:
+        _PHONE_TO_ISO[phone] = []
+    _PHONE_TO_ISO[phone].append(iso)
+    
     _ZH_NAME_TO_ISO[zh_name.lower()] = iso
     _EN_NAME_TO_ISO[en_name.lower()] = iso
     for alias in zh_aliases:
@@ -197,9 +202,11 @@ def get_country_info(text: str) -> dict:
     # Try ISO code
     if normalized.upper() in COUNTRY_DATA:
         iso_code = normalized.upper()
-    # Try phone code
+    # Try phone code - now returns first matching country from the list
     elif normalized in _PHONE_TO_ISO:
-        iso_code = _PHONE_TO_ISO[normalized]
+        iso_codes = _PHONE_TO_ISO[normalized]
+        # Return first country with this phone code
+        iso_code = iso_codes[0] if iso_codes else None
     # Try names and aliases
     elif normalized in _ZH_NAME_TO_ISO:
         iso_code = _ZH_NAME_TO_ISO[normalized]

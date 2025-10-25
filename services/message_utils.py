@@ -67,13 +67,14 @@ def compute_view_key(text: str, keyboard: InlineKeyboardMarkup = None) -> str:
     """Compute a stable hash key for a view (text + keyboard).
     
     This is used for de-duplication to avoid redundant edits.
+    Uses SHA-256 for better security practices.
     
     Args:
         text: Message text
         keyboard: InlineKeyboardMarkup (optional)
     
     Returns:
-        str: MD5 hash of the view
+        str: SHA-256 hash of the view
     """
     content = text
     if keyboard:
@@ -87,7 +88,7 @@ def compute_view_key(text: str, keyboard: InlineKeyboardMarkup = None) -> str:
             kb_data.append(tuple(row_data))
         content += str(tuple(kb_data))
     
-    return hashlib.md5(content.encode('utf-8')).hexdigest()
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
 
 def deduplicate_keyboard(keyboard: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
@@ -160,8 +161,8 @@ def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None,
                     query.answer("已是最新", show_alert=False)
                 else:
                     query.answer("Up to date", show_alert=False)
-            except:
-                pass
+            except TelegramError as e:
+                logging.debug(f"Could not answer callback for unchanged view: {e}")
             return True
         
         # Store new view key
@@ -194,8 +195,8 @@ def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None,
             # Answer callback to acknowledge
             try:
                 query.answer()
-            except:
-                pass
+            except TelegramError as e_answer:
+                logging.debug(f"Could not answer callback: {e_answer}")
             
             # Not actually an error - message is already in desired state
             return True
@@ -227,5 +228,5 @@ def maybe_answer_latest(query, lang='zh'):
             query.answer("已是最新", show_alert=False)
         else:
             query.answer("Up to date", show_alert=False)
-    except Exception as e:
+    except (TelegramError, BadRequest) as e:
         logging.debug(f"Could not answer callback: {e}")
