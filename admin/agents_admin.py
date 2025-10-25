@@ -57,6 +57,21 @@ ADMIN_I18N = {
         'back': '⬅️ 返回',
         'error_loading': '❌ 加载代理详情时出错',
         'error_loading_settings': '❌ 加载代理设置时出错',
+        # Panel and list view
+        'agent_panel_title': '🤖 代理管理面板',
+        'updated': '更新',
+        'total_agents': '代理总数',
+        'agents_running': '运行中',
+        'use_commands': '使用命令',
+        'cmd_agent_create': '/agent_create - 创建新代理',
+        'cmd_agent_list': '/agent_list - 列出所有代理',
+        'cmd_agent_pause': '/agent_pause - 暂停代理',
+        'cmd_agent_resume': '/agent_resume - 恢复代理',
+        'cmd_agent_pricing': '/agent_pricing - 设置代理定价',
+        'list_agents_btn': '📋 列出代理',
+        'back_to_admin': '⬅️ 返回管理',
+        'agent_list_title': '📋 代理列表',
+        'no_agents_msg': '未找到代理。\n\n使用 /agent_create 创建新代理。',
     },
     'en': {
         'agent_details_title': '🤖 Agent Details: {name}',
@@ -89,6 +104,21 @@ ADMIN_I18N = {
         'back': '⬅️ Back',
         'error_loading': '❌ Error loading agent details',
         'error_loading_settings': '❌ Error loading agent settings',
+        # Panel and list view
+        'agent_panel_title': '🤖 Agent Management Panel',
+        'updated': 'Updated',
+        'total_agents': 'Total agents',
+        'agents_running': 'Running',
+        'use_commands': 'Use commands',
+        'cmd_agent_create': '/agent_create - Create new agent',
+        'cmd_agent_list': '/agent_list - List all agents',
+        'cmd_agent_pause': '/agent_pause - Pause an agent',
+        'cmd_agent_resume': '/agent_resume - Resume an agent',
+        'cmd_agent_pricing': '/agent_pricing - Set agent pricing',
+        'list_agents_btn': '📋 List Agents',
+        'back_to_admin': '⬅️ Back to Admin',
+        'agent_list_title': '📋 Agent List',
+        'no_agents_msg': 'No agents found.\n\nUse /agent_create to create a new agent.',
     }
 }
 
@@ -96,6 +126,11 @@ ADMIN_I18N = {
 def t_admin(lang: str, key: str, **kwargs) -> str:
     """Translate admin panel text."""
     return render_text(lang, key, ADMIN_I18N, **kwargs)
+
+
+def get_timestamp() -> str:
+    """Get current timestamp for display."""
+    return datetime.now().strftime("%H:%M:%S")
 
 
 def agent_create_command(update: Update, context: CallbackContext):
@@ -346,42 +381,23 @@ def agent_panel_callback(update: Update, context: CallbackContext):
         agents = list_agents(agents_collection)
         running_agent_ids = set(get_running_agents())
         
-        # Add timestamp for refresh detection
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        # Build text using i18n
+        timestamp = get_timestamp()
+        text = f"<b>{t_admin(lang, 'agent_panel_title')}</b>  <i>{t_admin(lang, 'updated')}: {timestamp}</i>\n\n"
+        text += f"{t_admin(lang, 'total_agents')}: {len(agents)}\n"
+        text += f"{t_admin(lang, 'agents_running')}: {len(running_agent_ids)}\n\n"
+        text += f"{t_admin(lang, 'use_commands')}:\n"
+        text += f"  {t_admin(lang, 'cmd_agent_create')}\n"
+        text += f"  {t_admin(lang, 'cmd_agent_list')}\n"
+        text += f"  {t_admin(lang, 'cmd_agent_pause')}\n"
+        text += f"  {t_admin(lang, 'cmd_agent_resume')}\n"
+        text += f"  {t_admin(lang, 'cmd_agent_pricing')}\n"
         
-        if lang == 'zh':
-            text = f"<b>🤖 代理管理面板</b>  <i>更新: {timestamp}</i>\n\n"
-            text += f"代理总数: {len(agents)}\n"
-            text += f"运行中: {len(running_agent_ids)}\n\n"
-            text += "使用命令:\n"
-            text += "  /agent_create - 创建新代理\n"
-            text += "  /agent_list - 列出所有代理\n"
-            text += "  /agent_pause - 暂停代理\n"
-            text += "  /agent_resume - 恢复代理\n"
-            text += "  /agent_pricing - 设置代理定价\n"
-        else:
-            text = f"<b>🤖 Agent Management Panel</b>  <i>Updated: {timestamp}</i>\n\n"
-            text += f"Total agents: {len(agents)}\n"
-            text += f"Running: {len(running_agent_ids)}\n\n"
-            text += "Use commands:\n"
-            text += "  /agent_create - Create new agent\n"
-            text += "  /agent_list - List all agents\n"
-            text += "  /agent_pause - Pause an agent\n"
-            text += "  /agent_resume - Resume an agent\n"
-            text += "  /agent_pricing - Set agent pricing\n"
-        
-        if lang == 'zh':
-            keyboard = [
-                [InlineKeyboardButton("📋 列出代理", callback_data="agent_list_view")],
-                [InlineKeyboardButton("⬅️ 返回管理", callback_data="backstart")],
-                [InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")]
-            ]
-        else:
-            keyboard = [
-                [InlineKeyboardButton("📋 List Agents", callback_data="agent_list_view")],
-                [InlineKeyboardButton("⬅️ Back to Admin", callback_data="backstart")],
-                [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
-            ]
+        keyboard = [
+            [InlineKeyboardButton(t_admin(lang, 'list_agents_btn'), callback_data="agent_list_view")],
+            [InlineKeyboardButton(t_admin(lang, 'back_to_admin'), callback_data="backstart")],
+            [InlineKeyboardButton(t_admin(lang, 'close'), callback_data=f"close {query.from_user.id}")]
+        ]
         
         safe_edit_message_text(
             query,
@@ -415,26 +431,18 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
         agents = list_agents(agents_collection)
         running_agent_ids = set(get_running_agents())
         
-        # Add timestamp for refresh detection
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        
         if not agents:
-            if lang == 'zh':
-                msg = "未找到代理。\n\n使用 /agent_create 创建新代理。"
-            else:
-                msg = "No agents found.\n\nUse /agent_create to create a new agent."
             safe_edit_message_text(
                 query,
-                msg,
+                t_admin(lang, 'no_agents_msg'),
                 context=context,
                 view_name='agent_list_view'
             )
             return
         
-        if lang == 'zh':
-            text = f"<b>📋 代理列表</b>  <i>更新: {timestamp}</i>\n\n"
-        else:
-            text = f"<b>📋 Agent List</b>  <i>Updated: {timestamp}</i>\n\n"
+        # Build text using i18n
+        timestamp = get_timestamp()
+        text = f"<b>{t_admin(lang, 'agent_list_title')}</b>  <i>{t_admin(lang, 'updated')}: {timestamp}</i>\n\n"
         
         keyboard = []
         
@@ -455,12 +463,8 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
                 )
             ])
         
-        if lang == 'zh':
-            keyboard.append([InlineKeyboardButton("⬅️ 返回", callback_data="agent_panel")])
-            keyboard.append([InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")])
-        else:
-            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="agent_panel")])
-            keyboard.append([InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")])
+        keyboard.append([InlineKeyboardButton(t_admin(lang, 'back'), callback_data="agent_panel")])
+        keyboard.append([InlineKeyboardButton(t_admin(lang, 'close'), callback_data=f"close {query.from_user.id}")])
         
         safe_edit_message_text(
             query,
