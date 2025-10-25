@@ -30,6 +30,42 @@ def init_logging():
 
 init_logging()
 
+# === 修改点：新增 chat_id 解析与归一化工具 ===
+def _parse_chat_id_env(key: str, default=None):
+    """
+    容错解析 Telegram chat_id 的环境变量：
+    - 空/None/'-'/ '0' -> default
+    - 纯数字（可带负号）-> int
+    - 其他（如 @channel_username）-> 原字符串
+    """
+    raw = os.getenv(key, "")
+    if raw is None:
+        return default
+    raw = str(raw).strip()
+    if not raw or raw in ("-", "0", "None", "none"):
+        return default
+    if raw.lstrip("-").isdigit():
+        try:
+            return int(raw)
+        except Exception:
+            return default
+    return raw  # 允许 @username 或链接
+
+def _normalize_chat_id(cid):
+    """
+    在发送消息前将 chat_id 归一化：
+    - 字符串且是数字 -> 转 int
+    - 其他 -> 原样返回（如 @username）
+    """
+    if cid is None:
+        return None
+    if isinstance(cid, str) and cid.lstrip("-").isdigit():
+        try:
+            return int(cid)
+        except Exception:
+            return cid
+    return cid
+
 # ✅ 环境变量配置集中管理
 class Config:
     # MongoDB 配置
@@ -38,7 +74,7 @@ class Config:
     MONGO_DB_XCHP = os.getenv('MONGO_DB_XCHP', 'xc1111bot')
     MONGO_DB_MAIN = os.getenv('MONGO_DB_MAIN', 'qukuailian')
     
-    # 客服联系方式
+    # 客服联系方式（注意：若你已迁移到主Bot集中配置，可在别处从DB读取）
     CUSTOMER_SERVICE = os.getenv('CUSTOMER_SERVICE', '@lwmmm')
     OFFICIAL_CHANNEL = os.getenv('OFFICIAL_CHANNEL', '@XCZHCS')
     RESTOCK_GROUP = os.getenv('RESTOCK_GROUP', 'https://t.me/+EeTF1qOe_MoyMzQ0')
@@ -46,7 +82,9 @@ class Config:
     # Bot 配置
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     BOT_USERNAME = os.getenv('BOT_USERNAME', 'xc1111bot')
-    NOTIFY_CHANNEL_ID = int(os.getenv("NOTIFY_CHANNEL_ID", "0"))
+
+    # === 修改点：使用容错解析，支持 @username，并避免 '-' 崩溃 ===
+    NOTIFY_CHANNEL_ID = _parse_chat_id_env("NOTIFY_CHANNEL_ID", default=None)
     
     # 时间配置
     STOCK_NOTIFICATION_DELAY = int(os.getenv('STOCK_NOTIFICATION_DELAY', '3'))
@@ -57,8 +95,8 @@ class Config:
     def validate(cls):
         if not cls.BOT_TOKEN:
             raise ValueError("❌ BOT_TOKEN 环境变量未设置")
-        if cls.NOTIFY_CHANNEL_ID == 0:
-            logging.warning("⚠️ NOTIFY_CHANNEL_ID 未设置，库存通知可能无法正常工作")
+        if cls.NOTIFY_CHANNEL_ID in (None, ""):
+            logging.warning("⚠️ NOTIFY_CHANNEL_ID 未设置或无效，将跳过主频道库存通知发送")
 
 # 验证配置
 Config.validate()
@@ -72,7 +110,7 @@ CUSTOMER_SERVICE = Config.CUSTOMER_SERVICE
 OFFICIAL_CHANNEL = Config.OFFICIAL_CHANNEL
 RESTOCK_GROUP = Config.RESTOCK_GROUP
 BOT_TOKEN = Config.BOT_TOKEN
-NOTIFY_CHANNEL_ID = Config.NOTIFY_CHANNEL_ID
+NOTIFY_CHANNEL_ID = Config.NOTIFY_CHANNEL_ID  # 可能为 int、@username 或 None
 STOCK_NOTIFICATION_DELAY = Config.STOCK_NOTIFICATION_DELAY
 BOT_USERNAME = Config.BOT_USERNAME
 
@@ -180,6 +218,12 @@ class StockNotificationManager:
             if count <= 0:
                 logging.info(f"ℹ️ 补货数为0，跳过通知：nowuid={nowuid}")
                 return
+
+            # === 修改点：若未配置主频道ID，则跳过发送并给出日志 ===
+            chat_id = _normalize_chat_id(NOTIFY_CHANNEL_ID)
+            if not chat_id:
+                logging.warning("⚠️ 未设置 NOTIFY_CHANNEL_ID，跳过主频道库存通知发送")
+                return
             
             # 分离一级分类和二级分类名称
             if "/" in projectname:
@@ -206,7 +250,7 @@ class StockNotificationManager:
             
             bot = self.get_bot()
             bot.send_message(
-                chat_id=NOTIFY_CHANNEL_ID, 
+                chat_id=chat_id, 
                 text=text, 
                 parse_mode='HTML', 
                 reply_markup=keyboard
@@ -383,11 +427,6 @@ def shangchuanhaobao(leixing, uid, nowuid, hbid, projectname, timer, remark=''):
     except Exception as e:
         logging.error(f"❌ 上架商品失败：{projectname} - {e}")
 
-
-
-
-    
-    
 def erjifenleibiao(uid, nowuid, projectname, row):
     ejfl.insert_one({
         'uid': uid,
@@ -406,7 +445,6 @@ def erjifenleibiao(uid, nowuid, projectname, row):
         ''',
         'money': 0
     })
-
 
 def fenleibiao(uid, projectname,row):
     fenlei.insert_one({
@@ -486,8 +524,7 @@ def update_user_balance(user_id: int, amount: float, balance_type: str = 'USDT')
     except Exception as e:
         logging.error(f"❌ 更新用户余额失败：user_id={user_id} - {e}")
         return False
-    
-    
+
 def keybutton(Row, first):
     """按钮模板插入函数"""
     try:
@@ -505,8 +542,7 @@ def keybutton(Row, first):
         logging.info(f"✅ 插入按钮模板 Row={Row}, first={first}")
     except Exception as e:
         logging.error(f"❌ 插入按钮模板失败：{e}")
-    
-    
+
 def user_data(key_id, user_id, username, fullname, lastname, state, creation_time, last_contact_time):
     try:
         user.insert_one({
@@ -534,14 +570,14 @@ if shangtext.find_one({}) is None:
     fstext = '''
  💎本店业务💎 
 
-飞机号，协议号,  直登号(tdata) 批发/零售 !
-开通飞机会员,  能量租用&TRX兑换 , 老号老群老频道 !
+飞机号，协议号,  直登号(tdata) 批发/零售 !
+开通飞机会员,  能量租用&TRX兑换 , 老号老群老频道 !
 
 ❗️ 未使用过的本店商品的，请先少量购买测试，以免造成不必要的争执！谢谢合作！
 
 ❗️ 免责声明：本店所有商品，仅用于娱乐测试，不得用于违法活动！ 请遵守当地法律法规！
 
-⚙️ /start   ⬅️点击命令打开底部菜单!
+⚙️ /start   ⬅️点击命令打开底部菜单!
     '''.strip()
     shang_text('欢迎语', fstext)
     shang_text('欢迎语样式', b'\x80\x03]q\x00.')
