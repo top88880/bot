@@ -92,7 +92,31 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 # ✅ 管理员配置统一使用 ID
-ADMIN_IDS = list(map(int, filter(None, os.getenv("ADMIN_IDS", "").split(","))))
+# Robust parsing: strip inline comments, ignore non-numeric items
+def _parse_admin_ids(admin_ids_str):
+    """Parse ADMIN_IDS with robust error handling.
+    
+    Strips inline # comments and ignores non-numeric items.
+    """
+    result = []
+    if not admin_ids_str:
+        return result
+    
+    # Remove inline comments (everything after #)
+    admin_ids_str = admin_ids_str.split('#')[0].strip()
+    
+    for item in admin_ids_str.split(','):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            result.append(int(item))
+        except ValueError:
+            logging.warning(f"Ignoring non-numeric ADMIN_ID: '{item}'")
+    
+    return result
+
+ADMIN_IDS = _parse_admin_ids(os.getenv("ADMIN_IDS", ""))
 EASYPAY_PID = os.getenv("EASYPAY_PID")
 EASYPAY_KEY = os.getenv("EASYPAY_KEY")
 EASYPAY_GATEWAY = os.getenv("EASYPAY_GATEWAY")
