@@ -2,91 +2,77 @@
 
 This module provides strict validation for country search inputs,
 only matching valid country names, ISO codes, and phone country codes.
+Loads comprehensive country data from data/countries.json (ISO 3166-1).
 """
 
-import re
+import os
+import json
 import logging
 
+# Load country data from JSON file
+_COUNTRIES_JSON_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'countries.json')
 
-# Country data with ISO codes, phone codes, and names in zh/en
-COUNTRY_DATA = {
-    # ISO code -> (phone_code, zh_name, en_name, aliases_zh, aliases_en)
-    'AR': ('54', '阿根廷', 'Argentina', ['阿根廷'], ['argentina', 'arg']),
-    'US': ('1', '美国', 'United States', ['美国', '美利坚'], ['usa', 'united states', 'us', 'america']),
-    'GB': ('44', '英国', 'United Kingdom', ['英国'], ['uk', 'united kingdom', 'britain', 'great britain']),
-    'CN': ('86', '中国', 'China', ['中国'], ['china', 'cn', 'prc']),
-    'JP': ('81', '日本', 'Japan', ['日本'], ['japan', 'jp']),
-    'KR': ('82', '韩国', 'South Korea', ['韩国', '南韩'], ['korea', 'south korea', 'sk', 'rok']),
-    'DE': ('49', '德国', 'Germany', ['德国'], ['germany', 'de']),
-    'FR': ('33', '法国', 'France', ['法国'], ['france', 'fr']),
-    'IT': ('39', '意大利', 'Italy', ['意大利'], ['italy', 'it']),
-    'ES': ('34', '西班牙', 'Spain', ['西班牙'], ['spain', 'es']),
-    'CA': ('1', '加拿大', 'Canada', ['加拿大'], ['canada', 'ca']),
-    'AU': ('61', '澳大利亚', 'Australia', ['澳大利亚', '澳洲'], ['australia', 'aus', 'oz']),
-    'BR': ('55', '巴西', 'Brazil', ['巴西'], ['brazil', 'br']),
-    'MX': ('52', '墨西哥', 'Mexico', ['墨西哥'], ['mexico', 'mx']),
-    'IN': ('91', '印度', 'India', ['印度'], ['india', 'in']),
-    'RU': ('7', '俄罗斯', 'Russia', ['俄罗斯'], ['russia', 'ru']),
-    'ZA': ('27', '南非', 'South Africa', ['南非'], ['south africa', 'za']),
-    'NL': ('31', '荷兰', 'Netherlands', ['荷兰'], ['netherlands', 'nl', 'holland']),
-    'SE': ('46', '瑞典', 'Sweden', ['瑞典'], ['sweden', 'se']),
-    'NO': ('47', '挪威', 'Norway', ['挪威'], ['norway', 'no']),
-    'PL': ('48', '波兰', 'Poland', ['波兰'], ['poland', 'pl']),
-    'TR': ('90', '土耳其', 'Turkey', ['土耳其'], ['turkey', 'tr']),
-    'SA': ('966', '沙特阿拉伯', 'Saudi Arabia', ['沙特', '沙特阿拉伯'], ['saudi arabia', 'saudi', 'sa', 'ksa']),
-    'AE': ('971', '阿联酋', 'United Arab Emirates', ['阿联酋', '阿拉伯联合酋长国'], ['uae', 'united arab emirates', 'emirates']),
-    'SG': ('65', '新加坡', 'Singapore', ['新加坡'], ['singapore', 'sg']),
-    'MY': ('60', '马来西亚', 'Malaysia', ['马来西亚'], ['malaysia', 'my']),
-    'TH': ('66', '泰国', 'Thailand', ['泰国'], ['thailand', 'th']),
-    'VN': ('84', '越南', 'Vietnam', ['越南'], ['vietnam', 'vn']),
-    'PH': ('63', '菲律宾', 'Philippines', ['菲律宾'], ['philippines', 'ph']),
-    'ID': ('62', '印度尼西亚', 'Indonesia', ['印尼', '印度尼西亚'], ['indonesia', 'id']),
-    'PK': ('92', '巴基斯坦', 'Pakistan', ['巴基斯坦'], ['pakistan', 'pk']),
-    'BD': ('880', '孟加拉国', 'Bangladesh', ['孟加拉', '孟加拉国'], ['bangladesh', 'bd']),
-    'EG': ('20', '埃及', 'Egypt', ['埃及'], ['egypt', 'eg']),
-    'NG': ('234', '尼日利亚', 'Nigeria', ['尼日利亚'], ['nigeria', 'ng']),
-    'IL': ('972', '以色列', 'Israel', ['以色列'], ['israel', 'il']),
-    'GR': ('30', '希腊', 'Greece', ['希腊'], ['greece', 'gr']),
-    'PT': ('351', '葡萄牙', 'Portugal', ['葡萄牙'], ['portugal', 'pt']),
-    'CZ': ('420', '捷克', 'Czech Republic', ['捷克'], ['czech', 'czech republic', 'cz']),
-    'AT': ('43', '奥地利', 'Austria', ['奥地利'], ['austria', 'at']),
-    'CH': ('41', '瑞士', 'Switzerland', ['瑞士'], ['switzerland', 'ch']),
-    'BE': ('32', '比利时', 'Belgium', ['比利时'], ['belgium', 'be']),
-    'DK': ('45', '丹麦', 'Denmark', ['丹麦'], ['denmark', 'dk']),
-    'FI': ('358', '芬兰', 'Finland', ['芬兰'], ['finland', 'fi']),
-    'IE': ('353', '爱尔兰', 'Ireland', ['爱尔兰'], ['ireland', 'ie']),
-    'NZ': ('64', '新西兰', 'New Zealand', ['新西兰'], ['new zealand', 'nz']),
-    'LK': ('94', '斯里兰卡', 'Sri Lanka', ['斯里兰卡'], ['sri lanka', 'lk']),
-    'HK': ('852', '香港', 'Hong Kong', ['香港'], ['hong kong', 'hk']),
-    'TW': ('886', '台湾', 'Taiwan', ['台湾'], ['taiwan', 'tw']),
-    'MO': ('853', '澳门', 'Macau', ['澳门'], ['macau', 'mo']),
-}
+COUNTRY_DATA = {}  # iso2 -> dict with full country info
+_ISO3_TO_ISO2 = {}  # iso3 -> iso2
+_PHONE_TO_ISO = {}  # dial_code -> list of iso2 codes
+_ZH_NAME_TO_ISO = {}  # zh name -> iso2
+_EN_NAME_TO_ISO = {}  # en name -> iso2
+_ZH_ALIAS_TO_ISO = {}  # zh alias -> iso2
+_EN_ALIAS_TO_ISO = {}  # en alias -> iso2
 
 
-# Build reverse lookup indexes
-# Note: _PHONE_TO_ISO maps to a list of ISOs since multiple countries can share a phone code
-_PHONE_TO_ISO = {}
-_ZH_NAME_TO_ISO = {}
-_EN_NAME_TO_ISO = {}
-_ZH_ALIAS_TO_ISO = {}
-_EN_ALIAS_TO_ISO = {}
-
-for iso, (phone, zh_name, en_name, zh_aliases, en_aliases) in COUNTRY_DATA.items():
-    # Handle multiple countries with same phone code (e.g., US and CA both use '1')
-    if phone not in _PHONE_TO_ISO:
-        _PHONE_TO_ISO[phone] = []
-    _PHONE_TO_ISO[phone].append(iso)
+def _load_country_data():
+    """Load country data from JSON file and build indexes."""
+    global COUNTRY_DATA, _ISO3_TO_ISO2, _PHONE_TO_ISO
+    global _ZH_NAME_TO_ISO, _EN_NAME_TO_ISO, _ZH_ALIAS_TO_ISO, _EN_ALIAS_TO_ISO
     
-    _ZH_NAME_TO_ISO[zh_name.lower()] = iso
-    _EN_NAME_TO_ISO[en_name.lower()] = iso
-    for alias in zh_aliases:
-        _ZH_ALIAS_TO_ISO[alias.lower()] = iso
-    for alias in en_aliases:
-        _EN_ALIAS_TO_ISO[alias.lower()] = iso
+    try:
+        with open(_COUNTRIES_JSON_PATH, 'r', encoding='utf-8') as f:
+            countries = json.load(f)
+        
+        for country in countries:
+            iso2 = country['iso2']
+            iso3 = country['iso3']
+            dial_code = country['dial_code']
+            name_en = country['name_en']
+            name_zh = country['name_zh']
+            aliases_en = country.get('aliases_en', [])
+            aliases_zh = country.get('aliases_zh', [])
+            
+            # Store full country data
+            COUNTRY_DATA[iso2] = country
+            
+            # Build ISO3 index
+            _ISO3_TO_ISO2[iso3] = iso2
+            
+            # Build phone code index (handle multiple countries with same code)
+            if dial_code not in _PHONE_TO_ISO:
+                _PHONE_TO_ISO[dial_code] = []
+            _PHONE_TO_ISO[dial_code].append(iso2)
+            
+            # Build name indexes
+            _ZH_NAME_TO_ISO[name_zh.lower()] = iso2
+            _EN_NAME_TO_ISO[name_en.lower()] = iso2
+            
+            # Build alias indexes
+            for alias in aliases_zh:
+                _ZH_ALIAS_TO_ISO[alias.lower()] = iso2
+            for alias in aliases_en:
+                _EN_ALIAS_TO_ISO[alias.lower()] = iso2
+        
+        logging.info(f"Loaded {len(COUNTRY_DATA)} countries from {_COUNTRIES_JSON_PATH}")
+        
+    except Exception as e:
+        logging.error(f"Failed to load country data from {_COUNTRIES_JSON_PATH}: {e}")
+        logging.error("Country search functionality will be limited")
+
+
+# Load data on module import
+_load_country_data()
 
 
 def is_valid_iso_code(text: str) -> bool:
-    """Check if text is a valid ISO 3166-1 alpha-2 country code.
+    """Check if text is a valid ISO 3166-1 alpha-2 or alpha-3 country code.
     
     Args:
         text: Input text
@@ -95,7 +81,11 @@ def is_valid_iso_code(text: str) -> bool:
         bool: True if valid ISO code
     """
     normalized = text.strip().upper()
-    return len(normalized) == 2 and normalized in COUNTRY_DATA
+    if len(normalized) == 2:
+        return normalized in COUNTRY_DATA
+    elif len(normalized) == 3:
+        return normalized in _ISO3_TO_ISO2
+    return False
 
 
 def is_valid_phone_code(text: str) -> bool:
@@ -173,7 +163,11 @@ def normalize_country_query(text: str) -> str:
     
     # For ISO codes, return uppercase
     if is_valid_iso_code(text):
-        return text.upper()
+        normalized = text.upper()
+        # Convert ISO3 to ISO2 if needed
+        if len(normalized) == 3 and normalized in _ISO3_TO_ISO2:
+            return _ISO3_TO_ISO2[normalized]
+        return normalized
     
     # For phone codes, remove leading +
     if is_valid_phone_code(text):
@@ -190,7 +184,7 @@ def get_country_info(text: str) -> dict:
         text: Country query (name, ISO code, or phone code)
     
     Returns:
-        dict: Country info with keys: iso, phone, zh_name, en_name
+        dict: Country info with keys: iso2, iso3, dial_code, name_zh, name_en
               Returns None if not found
     """
     if not is_valid_country_query(text):
@@ -199,9 +193,12 @@ def get_country_info(text: str) -> dict:
     normalized = normalize_country_query(text)
     iso_code = None
     
-    # Try ISO code
+    # Try ISO2 code
     if normalized.upper() in COUNTRY_DATA:
         iso_code = normalized.upper()
+    # Try ISO3 code
+    elif len(normalized) == 3 and normalized.upper() in _ISO3_TO_ISO2:
+        iso_code = _ISO3_TO_ISO2[normalized.upper()]
     # Try phone code - now returns first matching country from the list
     elif normalized in _PHONE_TO_ISO:
         iso_codes = _PHONE_TO_ISO[normalized]
@@ -218,12 +215,14 @@ def get_country_info(text: str) -> dict:
         iso_code = _EN_ALIAS_TO_ISO[normalized]
     
     if iso_code and iso_code in COUNTRY_DATA:
-        phone, zh_name, en_name, _, _ = COUNTRY_DATA[iso_code]
+        country = COUNTRY_DATA[iso_code]
         return {
             'iso': iso_code,
-            'phone': phone,
-            'zh_name': zh_name,
-            'en_name': en_name
+            'iso2': country['iso2'],
+            'iso3': country['iso3'],
+            'phone': country['dial_code'],
+            'zh_name': country['name_zh'],
+            'en_name': country['name_en']
         }
     
     return None
