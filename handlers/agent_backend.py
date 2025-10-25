@@ -482,7 +482,9 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
             update.callback_query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            context=context,
+            view_name='agent_panel'
         )
     else:
         update.message.reply_text(

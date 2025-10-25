@@ -9845,11 +9845,20 @@ def textkeyboard(update: Update, context: CallbackContext):
                 except:
                     pass
                 
-                # 如果文本过长，不进行关键词查询
-                if len(text.strip()) > 50:
+                query_text = text.strip()
+                
+                # ✅ STRICT FILTER: Only respond to valid country queries
+                # Import search utilities
+                from services.search_utils import should_trigger_search, normalize_country_query
+                
+                # Check if this is a valid country query
+                if not should_trigger_search(query_text):
+                    # Not a valid country query - ignore silently
+                    logging.debug(f"Ignoring non-country query: '{query_text}'")
                     return
                 
-                query_text = text.strip()
+                # Normalize the query for searching
+                normalized_query = normalize_country_query(query_text)
                 
                 # ✅ 在商品名称中搜索关键词（支持模糊匹配）
                 matched_products = []
@@ -9873,17 +9882,15 @@ def textkeyboard(update: Update, context: CallbackContext):
                     if money <= 0:
                         continue
                     
-                    # 关键词匹配逻辑（不区分大小写）
+                    # 关键词匹配逻辑（使用规范化的查询）
                     product_name = product['projectname'].lower()
                     query_lower = query_text.lower()
+                    normalized_lower = normalized_query.lower()
                     
-                    # 支持多种匹配方式
-                    if (query_lower in product_name or 
-                        any(keyword in product_name for keyword in query_lower.split()) or
-                        # 支持数字匹配（如+86, +885等）
-                        query_text in product_name or
-                        # 支持国家名称匹配
-                        any(country in product_name for country in [query_text, query_lower])):
+                    # 匹配产品名称中包含查询文本、规范化查询或原始查询
+                    if (normalized_lower in product_name or 
+                        query_lower in product_name or
+                        query_text in product_name):
                         
                         # 获取分类信息
                         category = fenlei.find_one({'uid': uid})

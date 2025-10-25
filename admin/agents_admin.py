@@ -14,12 +14,87 @@ from services.agent_service import (
 )
 from services.tenant import get_tenant_string
 from services.message_utils import safe_edit_message_text
+from services.i18n_utils import get_locale, render_text
 from models.constants import (
     AGENT_STATUS_ACTIVE, AGENT_STATUS_PAUSED, AGENT_STATUS_SUSPENDED,
     MARKUP_TYPE_FIXED, MARKUP_TYPE_PERCENT
 )
-from mongo import bot_db
+from mongo import bot_db, user
 from agents_runner import start_agent_bot, stop_agent_bot, get_running_agents
+
+
+# ===== i18n Support for Admin Agent Management =====
+ADMIN_I18N = {
+    'zh': {
+        'agent_details_title': '🤖 代理详情：{name}',
+        'agent_id': 'ID',
+        'status': '状态',
+        'running': '运行中',
+        'stopped': '已停止',
+        'created': '创建时间',
+        'management_options': '管理选项',
+        'agent_settings': '🛠 代理联系方式设置',
+        'back_to_list': '⬅️ 返回列表',
+        'close': '❌ 关闭',
+        'agent_not_found': '❌ 代理 "{agent_id}" 未找到',
+        'settings_title': '🛠 代理联系方式设置 - {name}',
+        'current_settings': '当前设置',
+        'customer_service': '客服',
+        'official_channel': '官方频道',
+        'restock_group': '补货通知群',
+        'tutorial_link': '教程链接',
+        'notify_channel_id': '通知频道ID',
+        'notify_group_id': '通知群组ID',
+        'not_set': '未设置',
+        'select_item': '选择要设置的项目',
+        'set_customer_service': '📞 设置客服',
+        'set_official_channel': '📢 设置官方频道',
+        'set_restock_group': '📣 设置补货通知群',
+        'set_tutorial_link': '📖 设置教程链接',
+        'set_notify_channel': '🔔 设置通知频道ID',
+        'set_notify_group': '👥 设置通知群ID',
+        'back': '⬅️ 返回',
+        'error_loading': '❌ 加载代理详情时出错',
+        'error_loading_settings': '❌ 加载代理设置时出错',
+    },
+    'en': {
+        'agent_details_title': '🤖 Agent Details: {name}',
+        'agent_id': 'ID',
+        'status': 'Status',
+        'running': 'Running',
+        'stopped': 'Stopped',
+        'created': 'Created',
+        'management_options': 'Management Options',
+        'agent_settings': '🛠 Agent Contact Settings',
+        'back_to_list': '⬅️ Back to List',
+        'close': '❌ Close',
+        'agent_not_found': '❌ Agent "{agent_id}" not found',
+        'settings_title': '🛠 Agent Contact Settings - {name}',
+        'current_settings': 'Current Settings',
+        'customer_service': 'Customer Service',
+        'official_channel': 'Official Channel',
+        'restock_group': 'Restock Group',
+        'tutorial_link': 'Tutorial Link',
+        'notify_channel_id': 'Notify Channel ID',
+        'notify_group_id': 'Notify Group ID',
+        'not_set': 'Not Set',
+        'select_item': 'Select item to configure',
+        'set_customer_service': '📞 Set Customer Service',
+        'set_official_channel': '📢 Set Official Channel',
+        'set_restock_group': '📣 Set Restock Group',
+        'set_tutorial_link': '📖 Set Tutorial Link',
+        'set_notify_channel': '🔔 Set Notify Channel ID',
+        'set_notify_group': '👥 Set Notify Group ID',
+        'back': '⬅️ Back',
+        'error_loading': '❌ Error loading agent details',
+        'error_loading_settings': '❌ Error loading agent settings',
+    }
+}
+
+
+def t_admin(lang: str, key: str, **kwargs) -> str:
+    """Translate admin panel text."""
+    return render_text(lang, key, ADMIN_I18N, **kwargs)
 
 
 def agent_create_command(update: Update, context: CallbackContext):
@@ -352,6 +427,9 @@ def agent_detail_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     
+    # Get user language
+    lang = get_locale(update, context)
+    
     try:
         # Extract agent_id from callback_data "agent_detail <agent_id>"
         agent_id = query.data.split(' ', 1)[1]
@@ -360,7 +438,12 @@ def agent_detail_callback(update: Update, context: CallbackContext):
         agent = get_agent_by_id(agents_collection, agent_id)
         
         if not agent:
-            safe_edit_message_text(query, f"❌ Agent '{agent_id}' not found")
+            safe_edit_message_text(
+                query, 
+                t_admin(lang, 'agent_not_found', agent_id=agent_id),
+                context=context,
+                view_name='agent_detail'
+            )
             return
         
         name = agent.get('name', 'Unnamed')
@@ -368,36 +451,48 @@ def agent_detail_callback(update: Update, context: CallbackContext):
         running_agent_ids = set(get_running_agents())
         is_running = agent_id in running_agent_ids
         
-        text = f"""<b>🤖 Agent Details: {name}</b>
+        status_text = f"{status} 🟢 {t_admin(lang, 'running')}" if is_running else f"{status} 🔴 {t_admin(lang, 'stopped')}"
+        
+        text = f"""<b>{t_admin(lang, 'agent_details_title', name=name)}</b>
 
-<b>ID:</b> <code>{agent_id}</code>
-<b>Status:</b> {status} {'🟢 Running' if is_running else '🔴 Stopped'}
-<b>Created:</b> {agent.get('created_at', 'N/A')}
+<b>{t_admin(lang, 'agent_id')}:</b> <code>{agent_id}</code>
+<b>{t_admin(lang, 'status')}:</b> {status_text}
+<b>{t_admin(lang, 'created')}:</b> {agent.get('created_at', 'N/A')}
 
-<b>Management Options:</b>"""
+<b>{t_admin(lang, 'management_options')}:</b>"""
         
         keyboard = [
-            [InlineKeyboardButton("🛠 代理联系方式设置", callback_data=f"agent_settings {agent_id}")],
-            [InlineKeyboardButton("⬅️ Back to List", callback_data="agent_list_view")],
-            [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
+            [InlineKeyboardButton(t_admin(lang, 'agent_settings'), callback_data=f"agent_settings {agent_id}")],
+            [InlineKeyboardButton(t_admin(lang, 'back_to_list'), callback_data="agent_list_view")],
+            [InlineKeyboardButton(t_admin(lang, 'close'), callback_data=f"close {query.from_user.id}")]
         ]
         
         safe_edit_message_text(
             query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            context=context,
+            view_name='agent_detail'
         )
         
     except Exception as e:
         logging.error(f"Error in agent_detail_callback: {e}")
-        safe_edit_message_text(query, f"❌ Error loading agent details: {e}")
+        safe_edit_message_text(
+            query, 
+            t_admin(lang, 'error_loading') + f": {e}",
+            context=context,
+            view_name='agent_detail'
+        )
 
 
 def agent_settings_callback(update: Update, context: CallbackContext):
     """Show agent contact settings management panel."""
     query = update.callback_query
     query.answer()
+    
+    # Get user language
+    lang = get_locale(update, context)
     
     try:
         # Extract agent_id from callback_data "agent_settings <agent_id>"
@@ -407,59 +502,72 @@ def agent_settings_callback(update: Update, context: CallbackContext):
         agent = get_agent_by_id(agents_collection, agent_id)
         
         if not agent:
-            safe_edit_message_text(query, f"❌ Agent '{agent_id}' not found")
+            safe_edit_message_text(
+                query, 
+                t_admin(lang, 'agent_not_found', agent_id=agent_id),
+                context=context,
+                view_name='agent_settings'
+            )
             return
         
         name = agent.get('name', 'Unnamed')
         settings = agent.get('settings', {})
         
-        # Get current settings
-        customer_service = settings.get('customer_service') or '未设置'
-        official_channel = settings.get('official_channel') or '未设置'
-        restock_group = settings.get('restock_group') or '未设置'
-        tutorial_link = settings.get('tutorial_link') or '未设置'
-        notify_channel_id = settings.get('notify_channel_id') or '未设置'
-        notify_group_id = settings.get('notify_group_id') or '未设置'
+        # Get current settings with localized "not set"
+        not_set = t_admin(lang, 'not_set')
+        customer_service = settings.get('customer_service') or not_set
+        official_channel = settings.get('official_channel') or not_set
+        restock_group = settings.get('restock_group') or not_set
+        tutorial_link = settings.get('tutorial_link') or not_set
+        notify_channel_id = settings.get('notify_channel_id') or not_set
+        notify_group_id = settings.get('notify_group_id') or not_set
         
-        text = f"""<b>🛠 代理联系方式设置 - {name}</b>
+        text = f"""<b>{t_admin(lang, 'settings_title', name=name)}</b>
 
-<b>当前设置:</b>
-• 客服: {customer_service}
-• 官方频道: {official_channel}
-• 补货通知群: {restock_group}
-• 教程链接: {tutorial_link}
-• 通知频道ID: {notify_channel_id}
-• 通知群组ID: {notify_group_id}
+<b>{t_admin(lang, 'current_settings')}:</b>
+• {t_admin(lang, 'customer_service')}: {customer_service}
+• {t_admin(lang, 'official_channel')}: {official_channel}
+• {t_admin(lang, 'restock_group')}: {restock_group}
+• {t_admin(lang, 'tutorial_link')}: {tutorial_link}
+• {t_admin(lang, 'notify_channel_id')}: {notify_channel_id}
+• {t_admin(lang, 'notify_group_id')}: {notify_group_id}
 
-选择要设置的项目:"""
+{t_admin(lang, 'select_item')}:"""
         
         keyboard = [
             [
-                InlineKeyboardButton("📞 设置客服", callback_data=f"admin_set_cs {agent_id}"),
-                InlineKeyboardButton("📢 设置官方频道", callback_data=f"admin_set_official {agent_id}")
+                InlineKeyboardButton(t_admin(lang, 'set_customer_service'), callback_data=f"admin_set_cs {agent_id}"),
+                InlineKeyboardButton(t_admin(lang, 'set_official_channel'), callback_data=f"admin_set_official {agent_id}")
             ],
             [
-                InlineKeyboardButton("📣 设置补货通知群", callback_data=f"admin_set_restock {agent_id}"),
-                InlineKeyboardButton("📖 设置教程链接", callback_data=f"admin_set_tutorial {agent_id}")
+                InlineKeyboardButton(t_admin(lang, 'set_restock_group'), callback_data=f"admin_set_restock {agent_id}"),
+                InlineKeyboardButton(t_admin(lang, 'set_tutorial_link'), callback_data=f"admin_set_tutorial {agent_id}")
             ],
             [
-                InlineKeyboardButton("🔔 设置通知频道ID", callback_data=f"admin_set_notify_channel {agent_id}"),
-                InlineKeyboardButton("👥 设置通知群组ID", callback_data=f"admin_set_notify_group {agent_id}")
+                InlineKeyboardButton(t_admin(lang, 'set_notify_channel'), callback_data=f"admin_set_notify_channel {agent_id}"),
+                InlineKeyboardButton(t_admin(lang, 'set_notify_group'), callback_data=f"admin_set_notify_group {agent_id}")
             ],
-            [InlineKeyboardButton("⬅️ 返回", callback_data=f"agent_detail {agent_id}")],
-            [InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")]
+            [InlineKeyboardButton(t_admin(lang, 'back'), callback_data=f"agent_detail {agent_id}")],
+            [InlineKeyboardButton(t_admin(lang, 'close'), callback_data=f"close {query.from_user.id}")]
         ]
         
         safe_edit_message_text(
             query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            context=context,
+            view_name='agent_settings'
         )
         
     except Exception as e:
         logging.error(f"Error in agent_settings_callback: {e}")
-        safe_edit_message_text(query, f"❌ Error loading agent settings: {e}")
+        safe_edit_message_text(
+            query, 
+            t_admin(lang, 'error_loading_settings') + f": {e}",
+            context=context,
+            view_name='agent_settings'
+        )
 
 
 # Admin setting handlers

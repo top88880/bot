@@ -2,7 +2,8 @@
 
 import logging
 import html
-from telegram import Bot, ParseMode
+import hashlib
+from telegram import Bot, ParseMode, InlineKeyboardMarkup
 from telegram.error import BadRequest, TelegramError
 
 
@@ -62,22 +63,110 @@ def safe_send_html(
         return False
 
 
-def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None, **kwargs):
+def compute_view_key(text: str, keyboard: InlineKeyboardMarkup = None) -> str:
+    """Compute a stable hash key for a view (text + keyboard).
+    
+    This is used for de-duplication to avoid redundant edits.
+    
+    Args:
+        text: Message text
+        keyboard: InlineKeyboardMarkup (optional)
+    
+    Returns:
+        str: MD5 hash of the view
+    """
+    content = text
+    if keyboard:
+        # Serialize keyboard to stable string representation
+        kb_data = []
+        for row in keyboard.inline_keyboard:
+            row_data = []
+            for button in row:
+                # Include text and callback_data/url
+                row_data.append((button.text, button.callback_data or button.url or ''))
+            kb_data.append(tuple(row_data))
+        content += str(tuple(kb_data))
+    
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+
+def deduplicate_keyboard(keyboard: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
+    """Remove duplicate buttons from keyboard by callback_data/url.
+    
+    Args:
+        keyboard: InlineKeyboardMarkup to deduplicate
+    
+    Returns:
+        InlineKeyboardMarkup: Deduplicated keyboard
+    """
+    if not keyboard or not keyboard.inline_keyboard:
+        return keyboard
+    
+    new_rows = []
+    for row in keyboard.inline_keyboard:
+        seen = set()
+        new_row = []
+        for button in row:
+            # Use callback_data or url as unique identifier
+            identifier = button.callback_data or button.url or button.text
+            if identifier not in seen:
+                seen.add(identifier)
+                new_row.append(button)
+        if new_row:
+            new_rows.append(new_row)
+    
+    return InlineKeyboardMarkup(new_rows)
+
+
+def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None, 
+                           context=None, view_name=None, **kwargs):
     """Safely edit a message, handling 'Message is not modified' errors.
     
     This wrapper prevents errors when trying to edit a message with identical
-    content or when only the keyboard has changed.
+    content or when only the keyboard has changed. It also supports view 
+    de-duplication to avoid redundant edits.
     
     Args:
         query: CallbackQuery object
         text: New message text
         parse_mode: Parse mode for the text (default: 'HTML')
         reply_markup: New reply markup (optional)
+        context: CallbackContext for storing view keys (optional)
+        view_name: Name of the view for de-duplication (optional)
         **kwargs: Additional arguments to pass to edit_message_text
     
     Returns:
         bool: True if edited successfully or no change needed, False on error
     """
+    # Deduplicate keyboard if provided
+    if reply_markup:
+        reply_markup = deduplicate_keyboard(reply_markup)
+    
+    # Check if view is unchanged (de-duplication)
+    if context and view_name:
+        view_key = compute_view_key(text, reply_markup)
+        
+        # Initialize chat_data if needed
+        if not hasattr(context, 'chat_data') or context.chat_data is None:
+            context.chat_data = {}
+        
+        stored_key = context.chat_data.get(f'view_key_{view_name}')
+        
+        if stored_key == view_key:
+            # View hasn't changed, just answer callback
+            try:
+                lang = context.chat_data.get('lang', 'zh')
+                if lang == 'zh':
+                    query.answer("已是最新", show_alert=False)
+                else:
+                    query.answer("Up to date", show_alert=False)
+            except:
+                pass
+            return True
+        
+        # Store new view key
+        context.chat_data[f'view_key_{view_name}'] = view_key
+    
     try:
         query.edit_message_text(
             text=text,
@@ -102,6 +191,12 @@ def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None, **
                 except Exception as e2:
                     logging.debug(f"Could not update reply markup: {e2}")
             
+            # Answer callback to acknowledge
+            try:
+                query.answer()
+            except:
+                pass
+            
             # Not actually an error - message is already in desired state
             return True
         
@@ -116,3 +211,21 @@ def safe_edit_message_text(query, text, parse_mode='HTML', reply_markup=None, **
     except Exception as e:
         logging.error(f"Unexpected error editing message: {e}")
         return False
+
+
+def maybe_answer_latest(query, lang='zh'):
+    """Answer callback query with 'Up to date' message.
+    
+    This is a lightweight response when no edit is needed.
+    
+    Args:
+        query: CallbackQuery object
+        lang: Language ('zh' or 'en')
+    """
+    try:
+        if lang == 'zh':
+            query.answer("已是最新", show_alert=False)
+        else:
+            query.answer("Up to date", show_alert=False)
+    except Exception as e:
+        logging.debug(f"Could not answer callback: {e}")
