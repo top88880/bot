@@ -26,11 +26,39 @@ logging.info("Flask 回调服务已启动")
 # 加载环境变量
 load_dotenv()
 
+# --- 新增：容错解析整型列表（忽略行内注释/空白/非法项） ---
+def _parse_int_list_env(key: str, default=None):
+    """
+    解析形如 '12345, 67890  # 注释' 的整型ID列表环境变量：
+    - 去掉行内 # 注释
+    - 逗号分隔并 strip
+    - 仅保留纯数字（可带负号）的项，转换为 int
+    """
+    raw = os.getenv(key, "")
+    if raw is None:
+        return default or []
+    # 去掉行内注释
+    raw = str(raw).split('#', 1)[0]
+    ids = []
+    for part in raw.split(','):
+        p = part.strip()
+        if not p:
+            continue
+        if p.lstrip('-').isdigit():
+            try:
+                ids.append(int(p))
+            except Exception:
+                logging.warning(f"{key}: 跳过无法转换的项: {p}")
+        else:
+            logging.warning(f"{key}: 跳过非数字项: {p}")
+    return ids or (default or [])
+
 # ✅ 配置类集中管理
 class Config:
     # Bot 配置
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    ADMIN_IDS = list(map(int, filter(None, os.getenv("ADMIN_IDS", "").split(","))))
+    # 原：ADMIN_IDS = list(map(int, filter(None, os.getenv("ADMIN_IDS", "").split(","))))
+    ADMIN_IDS = _parse_int_list_env("ADMIN_IDS", default=[])
     
     # 数据库配置
     MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/")
@@ -53,7 +81,7 @@ class Config:
         if not cls.BOT_TOKEN:
             raise ValueError("❌ BOT_TOKEN 环境变量未设置")
         if not cls.ADMIN_IDS:
-            logging.warning("⚠️ ADMIN_IDS 未设置，无法发送管理员通知")
+            logging.warning("⚠️ ADMIN_IDS 未设置，无法发送管理员通知（支持形如：ADMIN_IDS=\"123,456\"）")
         logging.info("✅ 配置验证通过")
 
 # 验证配置
@@ -153,7 +181,7 @@ class OrderProcessor:
     
     @staticmethod
     def process_payment(order, money):
-        """处理支付逻辑"""
+        """处理支付逻辑（幂等：仅处理 pending 订单）"""
         try:
             # 🔧 每次都创建新的数据库连接，避免使用已关闭的连接
             mongo_client = pymongo.MongoClient(Config.MONGO_URI)
@@ -161,8 +189,15 @@ class OrderProcessor:
             mongo_topup = mongo_db['topup']
             mongo_user = mongo_db['user']
             
-            user_id = order['user_id']
-            usdt = float(order['usdt'])
+            # 再读一遍订单，确保 status 仍是 pending，避免并发重复入账
+            fresh = mongo_topup.find_one({'_id': order['_id']})
+            if not fresh or fresh.get('status') != 'pending':
+                logging.warning(f"⏩ 订单已处理或不存在，跳过：{order.get('bianhao')}")
+                mongo_client.close()
+                return None
+
+            user_id = fresh['user_id']
+            usdt = float(fresh['usdt'])
             
             # 获取用户信息
             user_doc = mongo_user.find_one({'user_id': user_id})
@@ -174,15 +209,18 @@ class OrderProcessor:
             old_balance = float(user_doc.get('USDT', 0))
             new_balance = round(old_balance + usdt, 2)
             
-            # 更新订单状态
-            mongo_topup.update_one({'_id': order['_id']}, {
-                '$set': {
-                    'status': 'success',
-                    'cz_type': order.get('cz_type', 'usdt'),
-                    'time': datetime.now(),
-                    'actual_money': money  # 记录实际支付金额
+            # 原子更新：将订单置成功
+            mongo_topup.update_one(
+                {'_id': fresh['_id'], 'status': 'pending'},
+                {
+                    '$set': {
+                        'status': 'success',
+                        'cz_type': fresh.get('cz_type', 'usdt'),
+                        'time': datetime.now(),
+                        'actual_money': money  # 记录实际支付金额
+                    }
                 }
-            })
+            )
             
             # 更新用户余额
             mongo_user.update_one({'user_id': user_id}, {'$inc': {'USDT': usdt}})
@@ -190,7 +228,7 @@ class OrderProcessor:
             # 处理完成后关闭连接
             mongo_client.close()
             
-            logging.info(f"✅ 支付处理成功：订单号 {order['bianhao']}，金额 {usdt}，新余额 {new_balance}")
+            logging.info(f"✅ 支付处理成功：订单号 {fresh['bianhao']}，金额 {usdt}，新余额 {new_balance}")
             
             return {
                 'user_id': user_id,
@@ -198,7 +236,7 @@ class OrderProcessor:
                 'old_balance': old_balance,
                 'new_balance': new_balance,
                 'user_doc': user_doc,
-                'order': order
+                'order': fresh
             }
         except Exception as e:
             logging.error(f"❌ 支付处理失败：{e}")
