@@ -138,12 +138,13 @@ def withdraw_approve_command(update: Update, context: CallbackContext):
             parse_mode='HTML'
         )
         
-        # Notify agent owner if possible
+        # Notify agent owner/requester if possible
         try:
-            owner_user_id = withdrawal.get('owner_user_id')
-            if owner_user_id:
+            # Try new field first, fallback to old field for backward compatibility
+            requester_user_id = withdrawal.get('requester_user_id') or withdrawal.get('owner_user_id')
+            if requester_user_id:
                 context.bot.send_message(
-                    chat_id=owner_user_id,
+                    chat_id=requester_user_id,
                     text=f"✅ 您的提现申请已审核通过\n\n"
                          f"<b>申请ID:</b> <code>{request_id}</code>\n"
                          f"<b>金额:</b> {amount} USDT\n"
@@ -238,12 +239,13 @@ def withdraw_reject_command(update: Update, context: CallbackContext):
             parse_mode='HTML'
         )
         
-        # Notify agent owner if possible
+        # Notify agent owner/requester if possible
         try:
-            owner_user_id = withdrawal.get('owner_user_id')
-            if owner_user_id:
+            # Try new field first, fallback to old field for backward compatibility
+            requester_user_id = withdrawal.get('requester_user_id') or withdrawal.get('owner_user_id')
+            if requester_user_id:
                 context.bot.send_message(
-                    chat_id=owner_user_id,
+                    chat_id=requester_user_id,
                     text=f"❌ 您的提现申请已被拒绝\n\n"
                          f"<b>申请ID:</b> <code>{request_id}</code>\n"
                          f"<b>金额:</b> {amount} USDT\n"
@@ -339,12 +341,13 @@ def withdraw_pay_command(update: Update, context: CallbackContext):
             parse_mode='HTML'
         )
         
-        # Notify agent owner if possible
+        # Notify agent owner/requester if possible
         try:
-            owner_user_id = withdrawal.get('owner_user_id')
-            if owner_user_id:
+            # Try new field first, fallback to old field for backward compatibility
+            requester_user_id = withdrawal.get('requester_user_id') or withdrawal.get('owner_user_id')
+            if requester_user_id:
                 context.bot.send_message(
-                    chat_id=owner_user_id,
+                    chat_id=requester_user_id,
                     text=f"✅ 您的提现已完成！\n\n"
                          f"<b>申请ID:</b> <code>{request_id}</code>\n"
                          f"<b>金额:</b> {amount} USDT\n"
@@ -526,12 +529,13 @@ def withdraw_approve_button(update: Update, context: CallbackContext):
         
         query.answer("✅ 已批准", show_alert=True)
         
-        # Notify agent owner
+        # Notify agent owner/requester
         try:
-            owner_user_id = withdrawal.get('owner_user_id')
-            if owner_user_id:
+            # Try new field first, fallback to old field for backward compatibility
+            requester_user_id = withdrawal.get('requester_user_id') or withdrawal.get('owner_user_id')
+            if requester_user_id:
                 context.bot.send_message(
-                    chat_id=owner_user_id,
+                    chat_id=requester_user_id,
                     text=f"✅ 您的提现申请已审核通过\n\n"
                          f"<b>申请ID:</b> <code>{request_id}</code>\n"
                          f"<b>金额:</b> {amount} USDT\n"
@@ -611,12 +615,13 @@ def withdraw_reject_button(update: Update, context: CallbackContext):
         
         query.answer("✅ 已拒绝", show_alert=True)
         
-        # Notify agent owner
+        # Notify agent owner/requester
         try:
-            owner_user_id = withdrawal.get('owner_user_id')
-            if owner_user_id:
+            # Try new field first, fallback to old field for backward compatibility
+            requester_user_id = withdrawal.get('requester_user_id') or withdrawal.get('owner_user_id')
+            if requester_user_id:
                 context.bot.send_message(
-                    chat_id=owner_user_id,
+                    chat_id=requester_user_id,
                     text=f"❌ 您的提现申请已被拒绝\n\n"
                          f"<b>申请ID:</b> <code>{request_id}</code>\n"
                          f"<b>金额:</b> {amount} USDT\n"
