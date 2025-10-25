@@ -5,6 +5,7 @@ resuming agents, and managing their pricing.
 """
 
 import logging
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 
@@ -337,37 +338,68 @@ def agent_panel_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     
+    # Get user language
+    lang = get_locale(update, context)
+    
     try:
         agents_collection = bot_db['agents']
         agents = list_agents(agents_collection)
         running_agent_ids = set(get_running_agents())
         
-        text = "<b>🤖 Agent Management Panel</b>\n\n"
-        text += f"Total agents: {len(agents)}\n"
-        text += f"Running: {len(running_agent_ids)}\n\n"
-        text += "Use commands:\n"
-        text += "  /agent_create - Create new agent\n"
-        text += "  /agent_list - List all agents\n"
-        text += "  /agent_pause - Pause an agent\n"
-        text += "  /agent_resume - Resume an agent\n"
-        text += "  /agent_pricing - Set agent pricing\n"
+        # Add timestamp for refresh detection
+        timestamp = datetime.now().strftime("%H:%M:%S")
         
-        keyboard = [
-            [InlineKeyboardButton("📋 List Agents", callback_data="agent_list_view")],
-            [InlineKeyboardButton("⬅️ Back to Admin", callback_data="backstart")],
-            [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
-        ]
+        if lang == 'zh':
+            text = f"<b>🤖 代理管理面板</b>  <i>更新: {timestamp}</i>\n\n"
+            text += f"代理总数: {len(agents)}\n"
+            text += f"运行中: {len(running_agent_ids)}\n\n"
+            text += "使用命令:\n"
+            text += "  /agent_create - 创建新代理\n"
+            text += "  /agent_list - 列出所有代理\n"
+            text += "  /agent_pause - 暂停代理\n"
+            text += "  /agent_resume - 恢复代理\n"
+            text += "  /agent_pricing - 设置代理定价\n"
+        else:
+            text = f"<b>🤖 Agent Management Panel</b>  <i>Updated: {timestamp}</i>\n\n"
+            text += f"Total agents: {len(agents)}\n"
+            text += f"Running: {len(running_agent_ids)}\n\n"
+            text += "Use commands:\n"
+            text += "  /agent_create - Create new agent\n"
+            text += "  /agent_list - List all agents\n"
+            text += "  /agent_pause - Pause an agent\n"
+            text += "  /agent_resume - Resume an agent\n"
+            text += "  /agent_pricing - Set agent pricing\n"
+        
+        if lang == 'zh':
+            keyboard = [
+                [InlineKeyboardButton("📋 列出代理", callback_data="agent_list_view")],
+                [InlineKeyboardButton("⬅️ 返回管理", callback_data="backstart")],
+                [InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")]
+            ]
+        else:
+            keyboard = [
+                [InlineKeyboardButton("📋 List Agents", callback_data="agent_list_view")],
+                [InlineKeyboardButton("⬅️ Back to Admin", callback_data="backstart")],
+                [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
+            ]
         
         safe_edit_message_text(
             query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            context=context,
+            view_name='agent_panel'
         )
         
     except Exception as e:
         logging.error(f"Error in agent_panel_callback: {e}")
-        safe_edit_message_text(query, f"❌ Error loading agent panel: {e}")
+        safe_edit_message_text(
+            query,
+            f"❌ Error loading agent panel: {e}",
+            context=context,
+            view_name='agent_panel'
+        )
 
 
 def agent_list_view_callback(update: Update, context: CallbackContext):
@@ -375,19 +407,35 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     
+    # Get user language
+    lang = get_locale(update, context)
+    
     try:
         agents_collection = bot_db['agents']
         agents = list_agents(agents_collection)
         running_agent_ids = set(get_running_agents())
         
+        # Add timestamp for refresh detection
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
         if not agents:
+            if lang == 'zh':
+                msg = "未找到代理。\n\n使用 /agent_create 创建新代理。"
+            else:
+                msg = "No agents found.\n\nUse /agent_create to create a new agent."
             safe_edit_message_text(
                 query,
-                "No agents found.\n\nUse /agent_create to create a new agent."
+                msg,
+                context=context,
+                view_name='agent_list_view'
             )
             return
         
-        text = "<b>📋 Agent List</b>\n\n"
+        if lang == 'zh':
+            text = f"<b>📋 代理列表</b>  <i>更新: {timestamp}</i>\n\n"
+        else:
+            text = f"<b>📋 Agent List</b>  <i>Updated: {timestamp}</i>\n\n"
+        
         keyboard = []
         
         for agent in agents:
@@ -407,19 +455,30 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
                 )
             ])
         
-        keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="agent_panel")])
-        keyboard.append([InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")])
+        if lang == 'zh':
+            keyboard.append([InlineKeyboardButton("⬅️ 返回", callback_data="agent_panel")])
+            keyboard.append([InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")])
+        else:
+            keyboard.append([InlineKeyboardButton("⬅️ Back", callback_data="agent_panel")])
+            keyboard.append([InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")])
         
         safe_edit_message_text(
             query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            context=context,
+            view_name='agent_list_view'
         )
         
     except Exception as e:
         logging.error(f"Error in agent_list_view_callback: {e}")
-        safe_edit_message_text(query, f"❌ Error loading agent list: {e}")
+        safe_edit_message_text(
+            query,
+            f"❌ Error loading agent list: {e}",
+            context=context,
+            view_name='agent_list_view'
+        )
 
 
 def agent_detail_callback(update: Update, context: CallbackContext):
