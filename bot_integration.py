@@ -17,6 +17,13 @@ from telegram.error import TelegramError, RetryAfter
 # Import database
 from mongo import agents, user
 
+# Import message utilities for safe editing
+from services.message_utils import safe_edit_message_text, maybe_answer_latest, deduplicate_keyboard
+from services.i18n_utils import get_locale
+
+# Pagination configuration
+AGENTS_PER_PAGE = 10
+
 
 # Storage for running agent updaters
 RUNNING_AGENTS = {}  # {agent_id: updater_instance}
@@ -369,13 +376,19 @@ def stop_agent_bot(agent_id):
         return False
 
 
-def agent_manage(update, context):
-    """Show agent management panel with full button support."""
+def agent_manage(update, context, page=0):
+    """Show agent management panel with pagination and safe editing.
+    
+    Args:
+        update: Telegram Update
+        context: CallbackContext
+        page: Current page number (0-indexed)
+    """
     query = update.callback_query
     query.answer()
     
     # Debug logging
-    logging.info(f"[Agent] agent_manage clicked by user {query.from_user.id}")
+    logging.info(f"[Agent] agent_manage clicked by user {query.from_user.id}, page={page}")
     
     # Check admin permission
     from bot import get_admin_ids
@@ -384,23 +397,56 @@ def agent_manage(update, context):
         return
     
     try:
+        # Get user locale
+        lang = get_locale(update, context)
+        
         agents_list = get_all_agents()
         running_count = len([a for a in agents_list if a.get('agent_id') in RUNNING_AGENTS])
         
-        text = "🤖 <b>代理管理</b>\n\n"
+        # Add timestamp to text for refresh detection
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        if lang == 'zh':
+            text = f"🤖 <b>代理管理</b>  <i>更新: {timestamp}</i>\n\n"
+        else:
+            text = f"🤖 <b>Agent Management</b>  <i>Updated: {timestamp}</i>\n\n"
         
         if not agents_list:
-            text += "📭 暂无代理\n\n"
-            text += "点击下方 <b>新增代理</b> 按钮开始创建第一个代理Bot。\n\n"
-            text += "<i>代理Bot可以分享你的商品库存并自动处理订单。</i>"
+            if lang == 'zh':
+                text += "📭 暂无代理\n\n"
+                text += "点击下方 <b>新增代理</b> 按钮开始创建第一个代理Bot。\n\n"
+                text += "<i>代理Bot可以分享你的商品库存并自动处理订单。</i>"
+            else:
+                text += "📭 No agents yet\n\n"
+                text += "Click <b>New Agent</b> below to create your first agent bot.\n\n"
+                text += "<i>Agent bots can share your inventory and handle orders automatically.</i>"
         else:
-            text += f"📊 代理总数: <b>{len(agents_list)}</b>\n"
-            text += f"🟢 运行中: <b>{running_count}</b>\n"
-            text += f"🔴 已停止: <b>{len(agents_list) - running_count}</b>\n\n"
+            if lang == 'zh':
+                text += f"📊 代理总数: <b>{len(agents_list)}</b>\n"
+                text += f"🟢 运行中: <b>{running_count}</b>\n"
+                text += f"🔴 已停止: <b>{len(agents_list) - running_count}</b>\n\n"
+            else:
+                text += f"📊 Total Agents: <b>{len(agents_list)}</b>\n"
+                text += f"🟢 Running: <b>{running_count}</b>\n"
+                text += f"🔴 Stopped: <b>{len(agents_list) - running_count}</b>\n\n"
+            
+            # Pagination
+            total_pages = (len(agents_list) + AGENTS_PER_PAGE - 1) // AGENTS_PER_PAGE
+            page = max(0, min(page, total_pages - 1))  # Clamp page to valid range
+            start_idx = page * AGENTS_PER_PAGE
+            end_idx = min(start_idx + AGENTS_PER_PAGE, len(agents_list))
+            
+            page_agents = agents_list[start_idx:end_idx]
+            
+            if total_pages > 1:
+                if lang == 'zh':
+                    text += f"<i>第 {page + 1}/{total_pages} 页</i>\n\n"
+                else:
+                    text += f"<i>Page {page + 1}/{total_pages}</i>\n\n"
             
             text += "━━━━━━━━━━━━━━━\n\n"
             
-            for idx, agent in enumerate(agents_list, 1):
+            for idx, agent in enumerate(page_agents, start_idx + 1):
                 agent_id = agent.get('agent_id', 'unknown')
                 name = agent.get('name', 'Unnamed')
                 status = agent.get('status', 'unknown')
@@ -408,27 +454,38 @@ def agent_manage(update, context):
                 # Check if actually running
                 if agent_id in RUNNING_AGENTS:
                     status_emoji = "🟢"
-                    status_text = "运行中"
+                    status_text = "运行中" if lang == 'zh' else "Running"
                 elif status == 'running':
                     status_emoji = "🟡"
-                    status_text = "启动中"
+                    status_text = "启动中" if lang == 'zh' else "Starting"
                 else:
                     status_emoji = "🔴"
-                    status_text = "已停止"
+                    status_text = "已停止" if lang == 'zh' else "Stopped"
                 
                 text += f"{idx}. {status_emoji} <b>{name}</b>\n"
                 text += f"   📋 ID: <code>{agent_id}</code>\n"
-                text += f"   📍 状态: {status_text}\n\n"
+                if lang == 'zh':
+                    text += f"   📍 状态: {status_text}\n\n"
+                else:
+                    text += f"   📍 Status: {status_text}\n\n"
         
-        buttons = [
-            [
+        # Build keyboard buttons
+        buttons = []
+        
+        # Top row: New Agent + Refresh
+        if lang == 'zh':
+            buttons.append([
                 InlineKeyboardButton("➕ 新增代理", callback_data="agent_new"),
-                InlineKeyboardButton("🔄 刷新列表", callback_data="agent_refresh")
-            ]
-        ]
+                InlineKeyboardButton("🔄 刷新列表", callback_data=f"agent_refresh {page}")
+            ])
+        else:
+            buttons.append([
+                InlineKeyboardButton("➕ New Agent", callback_data="agent_new"),
+                InlineKeyboardButton("🔄 Refresh", callback_data=f"agent_refresh {page}")
+            ])
         
-        # Add manage/toggle/delete/owners buttons for each agent (using short callback_data)
-        for agent in agents_list:
+        # Add manage/toggle/delete/owners buttons for each agent
+        for agent in page_agents if agents_list else []:
             agent_id = agent.get('agent_id')
             name = agent.get('name', 'Unnamed')
             
@@ -467,6 +524,22 @@ def agent_manage(update, context):
             ))
             buttons.append(row)
         
+        # Pagination controls
+        if agents_list and total_pages > 1:
+            nav_row = []
+            if page > 0:
+                nav_row.append(InlineKeyboardButton(
+                    "⬅️" if lang == 'zh' else "⬅️ Previous",
+                    callback_data=f"agent_page {page - 1}"
+                ))
+            if page < total_pages - 1:
+                nav_row.append(InlineKeyboardButton(
+                    "➡️" if lang == 'zh' else "Next ➡️",
+                    callback_data=f"agent_page {page + 1}"
+                ))
+            if nav_row:
+                buttons.append(nav_row)
+        
         # Add withdrawal review button
         pending_count = 0
         try:
@@ -476,33 +549,77 @@ def agent_manage(update, context):
             pass
         
         if pending_count > 0:
-            buttons.append([
-                InlineKeyboardButton(
-                    f"💰 审核提现 ({pending_count})", 
-                    callback_data="agent_wd_list"
-                )
-            ])
+            if lang == 'zh':
+                buttons.append([
+                    InlineKeyboardButton(
+                        f"💰 审核提现 ({pending_count})", 
+                        callback_data="agent_wd_list"
+                    )
+                ])
+            else:
+                buttons.append([
+                    InlineKeyboardButton(
+                        f"💰 Review Withdrawals ({pending_count})", 
+                        callback_data="agent_wd_list"
+                    )
+                ])
         
-        buttons.append([InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")])
+        # Back button
+        if lang == 'zh':
+            buttons.append([InlineKeyboardButton("🔙 返回控制台", callback_data="backstart")])
+        else:
+            buttons.append([InlineKeyboardButton("🔙 Back to Console", callback_data="backstart")])
         
-        query.edit_message_text(
+        # Use safe edit with deduplication
+        reply_markup = InlineKeyboardMarkup(buttons)
+        safe_edit_message_text(
+            query,
             text=text,
             parse_mode='HTML',
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup=reply_markup,
+            context=context,
+            view_name='agent_manage'
         )
         
     except Exception as e:
-        logging.error(f"Error in agent_manage: {e}")
-        query.edit_message_text(
-            f"❌ 加载代理管理面板时出错\n\n错误信息: {str(e)}\n\n"
-            f"请联系管理员检查日志。"
-        )
+        logging.error(f"Error in agent_manage: {e}", exc_info=True)
+        if lang == 'zh':
+            error_text = f"❌ 加载代理管理面板时出错\n\n错误信息: {str(e)}\n\n请联系管理员检查日志。"
+        else:
+            error_text = f"❌ Error loading agent management panel\n\nError: {str(e)}\n\nPlease contact admin."
+        query.edit_message_text(error_text)
 
 
 def agent_refresh(update, context):
-    """Refresh the agent management panel (same as agent_manage)."""
-    # Simply call agent_manage to refresh
-    agent_manage(update, context)
+    """Refresh the agent management panel with current page."""
+    # Extract page number from callback data if present
+    query = update.callback_query
+    callback_data = query.data
+    
+    page = 0
+    if ' ' in callback_data:
+        try:
+            page = int(callback_data.split()[1])
+        except (ValueError, IndexError):
+            page = 0
+    
+    # Call agent_manage with the current page
+    agent_manage(update, context, page=page)
+
+
+def agent_page(update, context):
+    """Navigate to a specific page of agents."""
+    query = update.callback_query
+    callback_data = query.data
+    
+    page = 0
+    if ' ' in callback_data:
+        try:
+            page = int(callback_data.split()[1])
+        except (ValueError, IndexError):
+            page = 0
+    
+    agent_manage(update, context, page=page)
 
 
 def agent_new(update, context):
@@ -892,7 +1009,8 @@ def integrate_agent_system(dispatcher, job_queue):
         
         # Register agent management callbacks (short versions for button flow)
         dispatcher.add_handler(CallbackQueryHandler(agent_manage, pattern='^agent_manage$'), group=-1)
-        dispatcher.add_handler(CallbackQueryHandler(agent_refresh, pattern='^agent_refresh$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_refresh, pattern='^agent_refresh'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_page, pattern='^agent_page '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_new, pattern='^agent_new$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_tgl, pattern='^agent_tgl '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_del, pattern='^agent_del '), group=-1)
@@ -908,6 +1026,7 @@ def integrate_agent_system(dispatcher, job_queue):
         logging.info("✅ Agent management callbacks registered:")
         logging.info("   - agent_manage (main panel)")
         logging.info("   - agent_refresh (refresh list)")
+        logging.info("   - agent_page (pagination)")
         logging.info("   - agent_new (add new agent)")
         logging.info("   - agent_tgl (toggle agent)")
         logging.info("   - agent_del (delete agent)")

@@ -1,0 +1,1559 @@
+[
+  {
+    "iso2": "AF",
+    "iso3": "AFG",
+    "name_en": "Afghanistan",
+    "name_zh": "阿富汗",
+    "dial_code": "93",
+    "aliases_en": ["afghanistan"],
+    "aliases_zh": ["阿富汗"]
+  },
+  {
+    "iso2": "AL",
+    "iso3": "ALB",
+    "name_en": "Albania",
+    "name_zh": "阿尔巴尼亚",
+    "dial_code": "355",
+    "aliases_en": ["albania"],
+    "aliases_zh": ["阿尔巴尼亚"]
+  },
+  {
+    "iso2": "DZ",
+    "iso3": "DZA",
+    "name_en": "Algeria",
+    "name_zh": "阿尔及利亚",
+    "dial_code": "213",
+    "aliases_en": ["algeria"],
+    "aliases_zh": ["阿尔及利亚"]
+  },
+  {
+    "iso2": "AD",
+    "iso3": "AND",
+    "name_en": "Andorra",
+    "name_zh": "安道尔",
+    "dial_code": "376",
+    "aliases_en": ["andorra"],
+    "aliases_zh": ["安道尔"]
+  },
+  {
+    "iso2": "AO",
+    "iso3": "AGO",
+    "name_en": "Angola",
+    "name_zh": "安哥拉",
+    "dial_code": "244",
+    "aliases_en": ["angola"],
+    "aliases_zh": ["安哥拉"]
+  },
+  {
+    "iso2": "AR",
+    "iso3": "ARG",
+    "name_en": "Argentina",
+    "name_zh": "阿根廷",
+    "dial_code": "54",
+    "aliases_en": ["argentina", "arg"],
+    "aliases_zh": ["阿根廷"]
+  },
+  {
+    "iso2": "AM",
+    "iso3": "ARM",
+    "name_en": "Armenia",
+    "name_zh": "亚美尼亚",
+    "dial_code": "374",
+    "aliases_en": ["armenia"],
+    "aliases_zh": ["亚美尼亚"]
+  },
+  {
+    "iso2": "AU",
+    "iso3": "AUS",
+    "name_en": "Australia",
+    "name_zh": "澳大利亚",
+    "dial_code": "61",
+    "aliases_en": ["australia", "aus", "oz"],
+    "aliases_zh": ["澳大利亚", "澳洲"]
+  },
+  {
+    "iso2": "AT",
+    "iso3": "AUT",
+    "name_en": "Austria",
+    "name_zh": "奥地利",
+    "dial_code": "43",
+    "aliases_en": ["austria"],
+    "aliases_zh": ["奥地利"]
+  },
+  {
+    "iso2": "AZ",
+    "iso3": "AZE",
+    "name_en": "Azerbaijan",
+    "name_zh": "阿塞拜疆",
+    "dial_code": "994",
+    "aliases_en": ["azerbaijan"],
+    "aliases_zh": ["阿塞拜疆"]
+  },
+  {
+    "iso2": "BS",
+    "iso3": "BHS",
+    "name_en": "Bahamas",
+    "name_zh": "巴哈马",
+    "dial_code": "1242",
+    "aliases_en": ["bahamas"],
+    "aliases_zh": ["巴哈马"]
+  },
+  {
+    "iso2": "BH",
+    "iso3": "BHR",
+    "name_en": "Bahrain",
+    "name_zh": "巴林",
+    "dial_code": "973",
+    "aliases_en": ["bahrain"],
+    "aliases_zh": ["巴林"]
+  },
+  {
+    "iso2": "BD",
+    "iso3": "BGD",
+    "name_en": "Bangladesh",
+    "name_zh": "孟加拉国",
+    "dial_code": "880",
+    "aliases_en": ["bangladesh"],
+    "aliases_zh": ["孟加拉", "孟加拉国"]
+  },
+  {
+    "iso2": "BY",
+    "iso3": "BLR",
+    "name_en": "Belarus",
+    "name_zh": "白俄罗斯",
+    "dial_code": "375",
+    "aliases_en": ["belarus"],
+    "aliases_zh": ["白俄罗斯"]
+  },
+  {
+    "iso2": "BE",
+    "iso3": "BEL",
+    "name_en": "Belgium",
+    "name_zh": "比利时",
+    "dial_code": "32",
+    "aliases_en": ["belgium"],
+    "aliases_zh": ["比利时"]
+  },
+  {
+    "iso2": "BZ",
+    "iso3": "BLZ",
+    "name_en": "Belize",
+    "name_zh": "伯利兹",
+    "dial_code": "501",
+    "aliases_en": ["belize"],
+    "aliases_zh": ["伯利兹"]
+  },
+  {
+    "iso2": "BJ",
+    "iso3": "BEN",
+    "name_en": "Benin",
+    "name_zh": "贝宁",
+    "dial_code": "229",
+    "aliases_en": ["benin"],
+    "aliases_zh": ["贝宁"]
+  },
+  {
+    "iso2": "BT",
+    "iso3": "BTN",
+    "name_en": "Bhutan",
+    "name_zh": "不丹",
+    "dial_code": "975",
+    "aliases_en": ["bhutan"],
+    "aliases_zh": ["不丹"]
+  },
+  {
+    "iso2": "BO",
+    "iso3": "BOL",
+    "name_en": "Bolivia",
+    "name_zh": "玻利维亚",
+    "dial_code": "591",
+    "aliases_en": ["bolivia"],
+    "aliases_zh": ["玻利维亚"]
+  },
+  {
+    "iso2": "BA",
+    "iso3": "BIH",
+    "name_en": "Bosnia and Herzegovina",
+    "name_zh": "波斯尼亚和黑塞哥维那",
+    "dial_code": "387",
+    "aliases_en": ["bosnia"],
+    "aliases_zh": ["波黑", "波斯尼亚"]
+  },
+  {
+    "iso2": "BW",
+    "iso3": "BWA",
+    "name_en": "Botswana",
+    "name_zh": "博茨瓦纳",
+    "dial_code": "267",
+    "aliases_en": ["botswana"],
+    "aliases_zh": ["博茨瓦纳"]
+  },
+  {
+    "iso2": "BR",
+    "iso3": "BRA",
+    "name_en": "Brazil",
+    "name_zh": "巴西",
+    "dial_code": "55",
+    "aliases_en": ["brazil"],
+    "aliases_zh": ["巴西"]
+  },
+  {
+    "iso2": "BN",
+    "iso3": "BRN",
+    "name_en": "Brunei",
+    "name_zh": "文莱",
+    "dial_code": "673",
+    "aliases_en": ["brunei"],
+    "aliases_zh": ["文莱"]
+  },
+  {
+    "iso2": "BG",
+    "iso3": "BGR",
+    "name_en": "Bulgaria",
+    "name_zh": "保加利亚",
+    "dial_code": "359",
+    "aliases_en": ["bulgaria"],
+    "aliases_zh": ["保加利亚"]
+  },
+  {
+    "iso2": "BF",
+    "iso3": "BFA",
+    "name_en": "Burkina Faso",
+    "name_zh": "布基纳法索",
+    "dial_code": "226",
+    "aliases_en": ["burkina faso"],
+    "aliases_zh": ["布基纳法索"]
+  },
+  {
+    "iso2": "BI",
+    "iso3": "BDI",
+    "name_en": "Burundi",
+    "name_zh": "布隆迪",
+    "dial_code": "257",
+    "aliases_en": ["burundi"],
+    "aliases_zh": ["布隆迪"]
+  },
+  {
+    "iso2": "KH",
+    "iso3": "KHM",
+    "name_en": "Cambodia",
+    "name_zh": "柬埔寨",
+    "dial_code": "855",
+    "aliases_en": ["cambodia"],
+    "aliases_zh": ["柬埔寨"]
+  },
+  {
+    "iso2": "CM",
+    "iso3": "CMR",
+    "name_en": "Cameroon",
+    "name_zh": "喀麦隆",
+    "dial_code": "237",
+    "aliases_en": ["cameroon"],
+    "aliases_zh": ["喀麦隆"]
+  },
+  {
+    "iso2": "CA",
+    "iso3": "CAN",
+    "name_en": "Canada",
+    "name_zh": "加拿大",
+    "dial_code": "1",
+    "aliases_en": ["canada"],
+    "aliases_zh": ["加拿大"]
+  },
+  {
+    "iso2": "CV",
+    "iso3": "CPV",
+    "name_en": "Cape Verde",
+    "name_zh": "佛得角",
+    "dial_code": "238",
+    "aliases_en": ["cape verde"],
+    "aliases_zh": ["佛得角"]
+  },
+  {
+    "iso2": "CF",
+    "iso3": "CAF",
+    "name_en": "Central African Republic",
+    "name_zh": "中非共和国",
+    "dial_code": "236",
+    "aliases_en": ["central african republic"],
+    "aliases_zh": ["中非"]
+  },
+  {
+    "iso2": "TD",
+    "iso3": "TCD",
+    "name_en": "Chad",
+    "name_zh": "乍得",
+    "dial_code": "235",
+    "aliases_en": ["chad"],
+    "aliases_zh": ["乍得"]
+  },
+  {
+    "iso2": "CL",
+    "iso3": "CHL",
+    "name_en": "Chile",
+    "name_zh": "智利",
+    "dial_code": "56",
+    "aliases_en": ["chile"],
+    "aliases_zh": ["智利"]
+  },
+  {
+    "iso2": "CN",
+    "iso3": "CHN",
+    "name_en": "China",
+    "name_zh": "中国",
+    "dial_code": "86",
+    "aliases_en": ["china", "prc"],
+    "aliases_zh": ["中国", "大陆"]
+  },
+  {
+    "iso2": "CO",
+    "iso3": "COL",
+    "name_en": "Colombia",
+    "name_zh": "哥伦比亚",
+    "dial_code": "57",
+    "aliases_en": ["colombia"],
+    "aliases_zh": ["哥伦比亚"]
+  },
+  {
+    "iso2": "KM",
+    "iso3": "COM",
+    "name_en": "Comoros",
+    "name_zh": "科摩罗",
+    "dial_code": "269",
+    "aliases_en": ["comoros"],
+    "aliases_zh": ["科摩罗"]
+  },
+  {
+    "iso2": "CG",
+    "iso3": "COG",
+    "name_en": "Congo",
+    "name_zh": "刚果共和国",
+    "dial_code": "242",
+    "aliases_en": ["congo"],
+    "aliases_zh": ["刚果"]
+  },
+  {
+    "iso2": "CR",
+    "iso3": "CRI",
+    "name_en": "Costa Rica",
+    "name_zh": "哥斯达黎加",
+    "dial_code": "506",
+    "aliases_en": ["costa rica"],
+    "aliases_zh": ["哥斯达黎加"]
+  },
+  {
+    "iso2": "CI",
+    "iso3": "CIV",
+    "name_en": "Cote d'Ivoire",
+    "name_zh": "科特迪瓦",
+    "dial_code": "225",
+    "aliases_en": ["cote d'ivoire", "ivory coast"],
+    "aliases_zh": ["科特迪瓦", "象牙海岸"]
+  },
+  {
+    "iso2": "HR",
+    "iso3": "HRV",
+    "name_en": "Croatia",
+    "name_zh": "克罗地亚",
+    "dial_code": "385",
+    "aliases_en": ["croatia"],
+    "aliases_zh": ["克罗地亚"]
+  },
+  {
+    "iso2": "CU",
+    "iso3": "CUB",
+    "name_en": "Cuba",
+    "name_zh": "古巴",
+    "dial_code": "53",
+    "aliases_en": ["cuba"],
+    "aliases_zh": ["古巴"]
+  },
+  {
+    "iso2": "CY",
+    "iso3": "CYP",
+    "name_en": "Cyprus",
+    "name_zh": "塞浦路斯",
+    "dial_code": "357",
+    "aliases_en": ["cyprus"],
+    "aliases_zh": ["塞浦路斯"]
+  },
+  {
+    "iso2": "CZ",
+    "iso3": "CZE",
+    "name_en": "Czech Republic",
+    "name_zh": "捷克",
+    "dial_code": "420",
+    "aliases_en": ["czech", "czech republic"],
+    "aliases_zh": ["捷克"]
+  },
+  {
+    "iso2": "DK",
+    "iso3": "DNK",
+    "name_en": "Denmark",
+    "name_zh": "丹麦",
+    "dial_code": "45",
+    "aliases_en": ["denmark"],
+    "aliases_zh": ["丹麦"]
+  },
+  {
+    "iso2": "DJ",
+    "iso3": "DJI",
+    "name_en": "Djibouti",
+    "name_zh": "吉布提",
+    "dial_code": "253",
+    "aliases_en": ["djibouti"],
+    "aliases_zh": ["吉布提"]
+  },
+  {
+    "iso2": "DO",
+    "iso3": "DOM",
+    "name_en": "Dominican Republic",
+    "name_zh": "多米尼加",
+    "dial_code": "1809",
+    "aliases_en": ["dominican republic"],
+    "aliases_zh": ["多米尼加"]
+  },
+  {
+    "iso2": "EC",
+    "iso3": "ECU",
+    "name_en": "Ecuador",
+    "name_zh": "厄瓜多尔",
+    "dial_code": "593",
+    "aliases_en": ["ecuador"],
+    "aliases_zh": ["厄瓜多尔"]
+  },
+  {
+    "iso2": "EG",
+    "iso3": "EGY",
+    "name_en": "Egypt",
+    "name_zh": "埃及",
+    "dial_code": "20",
+    "aliases_en": ["egypt"],
+    "aliases_zh": ["埃及"]
+  },
+  {
+    "iso2": "SV",
+    "iso3": "SLV",
+    "name_en": "El Salvador",
+    "name_zh": "萨尔瓦多",
+    "dial_code": "503",
+    "aliases_en": ["el salvador"],
+    "aliases_zh": ["萨尔瓦多"]
+  },
+  {
+    "iso2": "GQ",
+    "iso3": "GNQ",
+    "name_en": "Equatorial Guinea",
+    "name_zh": "赤道几内亚",
+    "dial_code": "240",
+    "aliases_en": ["equatorial guinea"],
+    "aliases_zh": ["赤道几内亚"]
+  },
+  {
+    "iso2": "ER",
+    "iso3": "ERI",
+    "name_en": "Eritrea",
+    "name_zh": "厄立特里亚",
+    "dial_code": "291",
+    "aliases_en": ["eritrea"],
+    "aliases_zh": ["厄立特里亚"]
+  },
+  {
+    "iso2": "EE",
+    "iso3": "EST",
+    "name_en": "Estonia",
+    "name_zh": "爱沙尼亚",
+    "dial_code": "372",
+    "aliases_en": ["estonia"],
+    "aliases_zh": ["爱沙尼亚"]
+  },
+  {
+    "iso2": "ET",
+    "iso3": "ETH",
+    "name_en": "Ethiopia",
+    "name_zh": "埃塞俄比亚",
+    "dial_code": "251",
+    "aliases_en": ["ethiopia"],
+    "aliases_zh": ["埃塞俄比亚"]
+  },
+  {
+    "iso2": "FJ",
+    "iso3": "FJI",
+    "name_en": "Fiji",
+    "name_zh": "斐济",
+    "dial_code": "679",
+    "aliases_en": ["fiji"],
+    "aliases_zh": ["斐济"]
+  },
+  {
+    "iso2": "FI",
+    "iso3": "FIN",
+    "name_en": "Finland",
+    "name_zh": "芬兰",
+    "dial_code": "358",
+    "aliases_en": ["finland"],
+    "aliases_zh": ["芬兰"]
+  },
+  {
+    "iso2": "FR",
+    "iso3": "FRA",
+    "name_en": "France",
+    "name_zh": "法国",
+    "dial_code": "33",
+    "aliases_en": ["france"],
+    "aliases_zh": ["法国"]
+  },
+  {
+    "iso2": "GA",
+    "iso3": "GAB",
+    "name_en": "Gabon",
+    "name_zh": "加蓬",
+    "dial_code": "241",
+    "aliases_en": ["gabon"],
+    "aliases_zh": ["加蓬"]
+  },
+  {
+    "iso2": "GM",
+    "iso3": "GMB",
+    "name_en": "Gambia",
+    "name_zh": "冈比亚",
+    "dial_code": "220",
+    "aliases_en": ["gambia"],
+    "aliases_zh": ["冈比亚"]
+  },
+  {
+    "iso2": "GE",
+    "iso3": "GEO",
+    "name_en": "Georgia",
+    "name_zh": "格鲁吉亚",
+    "dial_code": "995",
+    "aliases_en": ["georgia"],
+    "aliases_zh": ["格鲁吉亚"]
+  },
+  {
+    "iso2": "DE",
+    "iso3": "DEU",
+    "name_en": "Germany",
+    "name_zh": "德国",
+    "dial_code": "49",
+    "aliases_en": ["germany"],
+    "aliases_zh": ["德国"]
+  },
+  {
+    "iso2": "GH",
+    "iso3": "GHA",
+    "name_en": "Ghana",
+    "name_zh": "加纳",
+    "dial_code": "233",
+    "aliases_en": ["ghana"],
+    "aliases_zh": ["加纳"]
+  },
+  {
+    "iso2": "GR",
+    "iso3": "GRC",
+    "name_en": "Greece",
+    "name_zh": "希腊",
+    "dial_code": "30",
+    "aliases_en": ["greece"],
+    "aliases_zh": ["希腊"]
+  },
+  {
+    "iso2": "GT",
+    "iso3": "GTM",
+    "name_en": "Guatemala",
+    "name_zh": "危地马拉",
+    "dial_code": "502",
+    "aliases_en": ["guatemala"],
+    "aliases_zh": ["危地马拉"]
+  },
+  {
+    "iso2": "GN",
+    "iso3": "GIN",
+    "name_en": "Guinea",
+    "name_zh": "几内亚",
+    "dial_code": "224",
+    "aliases_en": ["guinea"],
+    "aliases_zh": ["几内亚"]
+  },
+  {
+    "iso2": "GW",
+    "iso3": "GNB",
+    "name_en": "Guinea-Bissau",
+    "name_zh": "几内亚比绍",
+    "dial_code": "245",
+    "aliases_en": ["guinea-bissau"],
+    "aliases_zh": ["几内亚比绍"]
+  },
+  {
+    "iso2": "GY",
+    "iso3": "GUY",
+    "name_en": "Guyana",
+    "name_zh": "圭亚那",
+    "dial_code": "592",
+    "aliases_en": ["guyana"],
+    "aliases_zh": ["圭亚那"]
+  },
+  {
+    "iso2": "HT",
+    "iso3": "HTI",
+    "name_en": "Haiti",
+    "name_zh": "海地",
+    "dial_code": "509",
+    "aliases_en": ["haiti"],
+    "aliases_zh": ["海地"]
+  },
+  {
+    "iso2": "HN",
+    "iso3": "HND",
+    "name_en": "Honduras",
+    "name_zh": "洪都拉斯",
+    "dial_code": "504",
+    "aliases_en": ["honduras"],
+    "aliases_zh": ["洪都拉斯"]
+  },
+  {
+    "iso2": "HK",
+    "iso3": "HKG",
+    "name_en": "Hong Kong",
+    "name_zh": "香港",
+    "dial_code": "852",
+    "aliases_en": ["hong kong", "hk"],
+    "aliases_zh": ["香港", "中国香港"]
+  },
+  {
+    "iso2": "HU",
+    "iso3": "HUN",
+    "name_en": "Hungary",
+    "name_zh": "匈牙利",
+    "dial_code": "36",
+    "aliases_en": ["hungary"],
+    "aliases_zh": ["匈牙利"]
+  },
+  {
+    "iso2": "IS",
+    "iso3": "ISL",
+    "name_en": "Iceland",
+    "name_zh": "冰岛",
+    "dial_code": "354",
+    "aliases_en": ["iceland"],
+    "aliases_zh": ["冰岛"]
+  },
+  {
+    "iso2": "IN",
+    "iso3": "IND",
+    "name_en": "India",
+    "name_zh": "印度",
+    "dial_code": "91",
+    "aliases_en": ["india"],
+    "aliases_zh": ["印度"]
+  },
+  {
+    "iso2": "ID",
+    "iso3": "IDN",
+    "name_en": "Indonesia",
+    "name_zh": "印度尼西亚",
+    "dial_code": "62",
+    "aliases_en": ["indonesia"],
+    "aliases_zh": ["印尼", "印度尼西亚"]
+  },
+  {
+    "iso2": "IR",
+    "iso3": "IRN",
+    "name_en": "Iran",
+    "name_zh": "伊朗",
+    "dial_code": "98",
+    "aliases_en": ["iran"],
+    "aliases_zh": ["伊朗"]
+  },
+  {
+    "iso2": "IQ",
+    "iso3": "IRQ",
+    "name_en": "Iraq",
+    "name_zh": "伊拉克",
+    "dial_code": "964",
+    "aliases_en": ["iraq"],
+    "aliases_zh": ["伊拉克"]
+  },
+  {
+    "iso2": "IE",
+    "iso3": "IRL",
+    "name_en": "Ireland",
+    "name_zh": "爱尔兰",
+    "dial_code": "353",
+    "aliases_en": ["ireland"],
+    "aliases_zh": ["爱尔兰"]
+  },
+  {
+    "iso2": "IL",
+    "iso3": "ISR",
+    "name_en": "Israel",
+    "name_zh": "以色列",
+    "dial_code": "972",
+    "aliases_en": ["israel"],
+    "aliases_zh": ["以色列"]
+  },
+  {
+    "iso2": "IT",
+    "iso3": "ITA",
+    "name_en": "Italy",
+    "name_zh": "意大利",
+    "dial_code": "39",
+    "aliases_en": ["italy"],
+    "aliases_zh": ["意大利"]
+  },
+  {
+    "iso2": "JM",
+    "iso3": "JAM",
+    "name_en": "Jamaica",
+    "name_zh": "牙买加",
+    "dial_code": "1876",
+    "aliases_en": ["jamaica"],
+    "aliases_zh": ["牙买加"]
+  },
+  {
+    "iso2": "JP",
+    "iso3": "JPN",
+    "name_en": "Japan",
+    "name_zh": "日本",
+    "dial_code": "81",
+    "aliases_en": ["japan"],
+    "aliases_zh": ["日本"]
+  },
+  {
+    "iso2": "JO",
+    "iso3": "JOR",
+    "name_en": "Jordan",
+    "name_zh": "约旦",
+    "dial_code": "962",
+    "aliases_en": ["jordan"],
+    "aliases_zh": ["约旦"]
+  },
+  {
+    "iso2": "KZ",
+    "iso3": "KAZ",
+    "name_en": "Kazakhstan",
+    "name_zh": "哈萨克斯坦",
+    "dial_code": "7",
+    "aliases_en": ["kazakhstan"],
+    "aliases_zh": ["哈萨克斯坦"]
+  },
+  {
+    "iso2": "KE",
+    "iso3": "KEN",
+    "name_en": "Kenya",
+    "name_zh": "肯尼亚",
+    "dial_code": "254",
+    "aliases_en": ["kenya"],
+    "aliases_zh": ["肯尼亚"]
+  },
+  {
+    "iso2": "KI",
+    "iso3": "KIR",
+    "name_en": "Kiribati",
+    "name_zh": "基里巴斯",
+    "dial_code": "686",
+    "aliases_en": ["kiribati"],
+    "aliases_zh": ["基里巴斯"]
+  },
+  {
+    "iso2": "KW",
+    "iso3": "KWT",
+    "name_en": "Kuwait",
+    "name_zh": "科威特",
+    "dial_code": "965",
+    "aliases_en": ["kuwait"],
+    "aliases_zh": ["科威特"]
+  },
+  {
+    "iso2": "KG",
+    "iso3": "KGZ",
+    "name_en": "Kyrgyzstan",
+    "name_zh": "吉尔吉斯斯坦",
+    "dial_code": "996",
+    "aliases_en": ["kyrgyzstan"],
+    "aliases_zh": ["吉尔吉斯斯坦"]
+  },
+  {
+    "iso2": "LA",
+    "iso3": "LAO",
+    "name_en": "Laos",
+    "name_zh": "老挝",
+    "dial_code": "856",
+    "aliases_en": ["laos", "lao"],
+    "aliases_zh": ["老挝"]
+  },
+  {
+    "iso2": "LV",
+    "iso3": "LVA",
+    "name_en": "Latvia",
+    "name_zh": "拉脱维亚",
+    "dial_code": "371",
+    "aliases_en": ["latvia"],
+    "aliases_zh": ["拉脱维亚"]
+  },
+  {
+    "iso2": "LB",
+    "iso3": "LBN",
+    "name_en": "Lebanon",
+    "name_zh": "黎巴嫩",
+    "dial_code": "961",
+    "aliases_en": ["lebanon"],
+    "aliases_zh": ["黎巴嫩"]
+  },
+  {
+    "iso2": "LS",
+    "iso3": "LSO",
+    "name_en": "Lesotho",
+    "name_zh": "莱索托",
+    "dial_code": "266",
+    "aliases_en": ["lesotho"],
+    "aliases_zh": ["莱索托"]
+  },
+  {
+    "iso2": "LR",
+    "iso3": "LBR",
+    "name_en": "Liberia",
+    "name_zh": "利比里亚",
+    "dial_code": "231",
+    "aliases_en": ["liberia"],
+    "aliases_zh": ["利比里亚"]
+  },
+  {
+    "iso2": "LY",
+    "iso3": "LBY",
+    "name_en": "Libya",
+    "name_zh": "利比亚",
+    "dial_code": "218",
+    "aliases_en": ["libya"],
+    "aliases_zh": ["利比亚"]
+  },
+  {
+    "iso2": "LT",
+    "iso3": "LTU",
+    "name_en": "Lithuania",
+    "name_zh": "立陶宛",
+    "dial_code": "370",
+    "aliases_en": ["lithuania"],
+    "aliases_zh": ["立陶宛"]
+  },
+  {
+    "iso2": "LU",
+    "iso3": "LUX",
+    "name_en": "Luxembourg",
+    "name_zh": "卢森堡",
+    "dial_code": "352",
+    "aliases_en": ["luxembourg"],
+    "aliases_zh": ["卢森堡"]
+  },
+  {
+    "iso2": "MO",
+    "iso3": "MAC",
+    "name_en": "Macau",
+    "name_zh": "澳门",
+    "dial_code": "853",
+    "aliases_en": ["macau", "macao"],
+    "aliases_zh": ["澳门", "中国澳门"]
+  },
+  {
+    "iso2": "MG",
+    "iso3": "MDG",
+    "name_en": "Madagascar",
+    "name_zh": "马达加斯加",
+    "dial_code": "261",
+    "aliases_en": ["madagascar"],
+    "aliases_zh": ["马达加斯加"]
+  },
+  {
+    "iso2": "MW",
+    "iso3": "MWI",
+    "name_en": "Malawi",
+    "name_zh": "马拉维",
+    "dial_code": "265",
+    "aliases_en": ["malawi"],
+    "aliases_zh": ["马拉维"]
+  },
+  {
+    "iso2": "MY",
+    "iso3": "MYS",
+    "name_en": "Malaysia",
+    "name_zh": "马来西亚",
+    "dial_code": "60",
+    "aliases_en": ["malaysia"],
+    "aliases_zh": ["马来西亚"]
+  },
+  {
+    "iso2": "MV",
+    "iso3": "MDV",
+    "name_en": "Maldives",
+    "name_zh": "马尔代夫",
+    "dial_code": "960",
+    "aliases_en": ["maldives"],
+    "aliases_zh": ["马尔代夫"]
+  },
+  {
+    "iso2": "ML",
+    "iso3": "MLI",
+    "name_en": "Mali",
+    "name_zh": "马里",
+    "dial_code": "223",
+    "aliases_en": ["mali"],
+    "aliases_zh": ["马里"]
+  },
+  {
+    "iso2": "MT",
+    "iso3": "MLT",
+    "name_en": "Malta",
+    "name_zh": "马耳他",
+    "dial_code": "356",
+    "aliases_en": ["malta"],
+    "aliases_zh": ["马耳他"]
+  },
+  {
+    "iso2": "MR",
+    "iso3": "MRT",
+    "name_en": "Mauritania",
+    "name_zh": "毛里塔尼亚",
+    "dial_code": "222",
+    "aliases_en": ["mauritania"],
+    "aliases_zh": ["毛里塔尼亚"]
+  },
+  {
+    "iso2": "MU",
+    "iso3": "MUS",
+    "name_en": "Mauritius",
+    "name_zh": "毛里求斯",
+    "dial_code": "230",
+    "aliases_en": ["mauritius"],
+    "aliases_zh": ["毛里求斯"]
+  },
+  {
+    "iso2": "MX",
+    "iso3": "MEX",
+    "name_en": "Mexico",
+    "name_zh": "墨西哥",
+    "dial_code": "52",
+    "aliases_en": ["mexico"],
+    "aliases_zh": ["墨西哥"]
+  },
+  {
+    "iso2": "MD",
+    "iso3": "MDA",
+    "name_en": "Moldova",
+    "name_zh": "摩尔多瓦",
+    "dial_code": "373",
+    "aliases_en": ["moldova"],
+    "aliases_zh": ["摩尔多瓦"]
+  },
+  {
+    "iso2": "MC",
+    "iso3": "MCO",
+    "name_en": "Monaco",
+    "name_zh": "摩纳哥",
+    "dial_code": "377",
+    "aliases_en": ["monaco"],
+    "aliases_zh": ["摩纳哥"]
+  },
+  {
+    "iso2": "MN",
+    "iso3": "MNG",
+    "name_en": "Mongolia",
+    "name_zh": "蒙古",
+    "dial_code": "976",
+    "aliases_en": ["mongolia"],
+    "aliases_zh": ["蒙古"]
+  },
+  {
+    "iso2": "ME",
+    "iso3": "MNE",
+    "name_en": "Montenegro",
+    "name_zh": "黑山",
+    "dial_code": "382",
+    "aliases_en": ["montenegro"],
+    "aliases_zh": ["黑山"]
+  },
+  {
+    "iso2": "MA",
+    "iso3": "MAR",
+    "name_en": "Morocco",
+    "name_zh": "摩洛哥",
+    "dial_code": "212",
+    "aliases_en": ["morocco"],
+    "aliases_zh": ["摩洛哥"]
+  },
+  {
+    "iso2": "MZ",
+    "iso3": "MOZ",
+    "name_en": "Mozambique",
+    "name_zh": "莫桑比克",
+    "dial_code": "258",
+    "aliases_en": ["mozambique"],
+    "aliases_zh": ["莫桑比克"]
+  },
+  {
+    "iso2": "MM",
+    "iso3": "MMR",
+    "name_en": "Myanmar",
+    "name_zh": "缅甸",
+    "dial_code": "95",
+    "aliases_en": ["myanmar", "burma"],
+    "aliases_zh": ["缅甸"]
+  },
+  {
+    "iso2": "NA",
+    "iso3": "NAM",
+    "name_en": "Namibia",
+    "name_zh": "纳米比亚",
+    "dial_code": "264",
+    "aliases_en": ["namibia"],
+    "aliases_zh": ["纳米比亚"]
+  },
+  {
+    "iso2": "NP",
+    "iso3": "NPL",
+    "name_en": "Nepal",
+    "name_zh": "尼泊尔",
+    "dial_code": "977",
+    "aliases_en": ["nepal"],
+    "aliases_zh": ["尼泊尔"]
+  },
+  {
+    "iso2": "NL",
+    "iso3": "NLD",
+    "name_en": "Netherlands",
+    "name_zh": "荷兰",
+    "dial_code": "31",
+    "aliases_en": ["netherlands", "holland"],
+    "aliases_zh": ["荷兰"]
+  },
+  {
+    "iso2": "NZ",
+    "iso3": "NZL",
+    "name_en": "New Zealand",
+    "name_zh": "新西兰",
+    "dial_code": "64",
+    "aliases_en": ["new zealand", "nz"],
+    "aliases_zh": ["新西兰"]
+  },
+  {
+    "iso2": "NI",
+    "iso3": "NIC",
+    "name_en": "Nicaragua",
+    "name_zh": "尼加拉瓜",
+    "dial_code": "505",
+    "aliases_en": ["nicaragua"],
+    "aliases_zh": ["尼加拉瓜"]
+  },
+  {
+    "iso2": "NE",
+    "iso3": "NER",
+    "name_en": "Niger",
+    "name_zh": "尼日尔",
+    "dial_code": "227",
+    "aliases_en": ["niger"],
+    "aliases_zh": ["尼日尔"]
+  },
+  {
+    "iso2": "NG",
+    "iso3": "NGA",
+    "name_en": "Nigeria",
+    "name_zh": "尼日利亚",
+    "dial_code": "234",
+    "aliases_en": ["nigeria"],
+    "aliases_zh": ["尼日利亚"]
+  },
+  {
+    "iso2": "KP",
+    "iso3": "PRK",
+    "name_en": "North Korea",
+    "name_zh": "朝鲜",
+    "dial_code": "850",
+    "aliases_en": ["north korea", "dprk"],
+    "aliases_zh": ["朝鲜", "北朝鲜"]
+  },
+  {
+    "iso2": "NO",
+    "iso3": "NOR",
+    "name_en": "Norway",
+    "name_zh": "挪威",
+    "dial_code": "47",
+    "aliases_en": ["norway"],
+    "aliases_zh": ["挪威"]
+  },
+  {
+    "iso2": "OM",
+    "iso3": "OMN",
+    "name_en": "Oman",
+    "name_zh": "阿曼",
+    "dial_code": "968",
+    "aliases_en": ["oman"],
+    "aliases_zh": ["阿曼"]
+  },
+  {
+    "iso2": "PK",
+    "iso3": "PAK",
+    "name_en": "Pakistan",
+    "name_zh": "巴基斯坦",
+    "dial_code": "92",
+    "aliases_en": ["pakistan"],
+    "aliases_zh": ["巴基斯坦"]
+  },
+  {
+    "iso2": "PA",
+    "iso3": "PAN",
+    "name_en": "Panama",
+    "name_zh": "巴拿马",
+    "dial_code": "507",
+    "aliases_en": ["panama"],
+    "aliases_zh": ["巴拿马"]
+  },
+  {
+    "iso2": "PG",
+    "iso3": "PNG",
+    "name_en": "Papua New Guinea",
+    "name_zh": "巴布亚新几内亚",
+    "dial_code": "675",
+    "aliases_en": ["papua new guinea"],
+    "aliases_zh": ["巴布亚新几内亚"]
+  },
+  {
+    "iso2": "PY",
+    "iso3": "PRY",
+    "name_en": "Paraguay",
+    "name_zh": "巴拉圭",
+    "dial_code": "595",
+    "aliases_en": ["paraguay"],
+    "aliases_zh": ["巴拉圭"]
+  },
+  {
+    "iso2": "PE",
+    "iso3": "PER",
+    "name_en": "Peru",
+    "name_zh": "秘鲁",
+    "dial_code": "51",
+    "aliases_en": ["peru"],
+    "aliases_zh": ["秘鲁"]
+  },
+  {
+    "iso2": "PH",
+    "iso3": "PHL",
+    "name_en": "Philippines",
+    "name_zh": "菲律宾",
+    "dial_code": "63",
+    "aliases_en": ["philippines"],
+    "aliases_zh": ["菲律宾"]
+  },
+  {
+    "iso2": "PL",
+    "iso3": "POL",
+    "name_en": "Poland",
+    "name_zh": "波兰",
+    "dial_code": "48",
+    "aliases_en": ["poland"],
+    "aliases_zh": ["波兰"]
+  },
+  {
+    "iso2": "PT",
+    "iso3": "PRT",
+    "name_en": "Portugal",
+    "name_zh": "葡萄牙",
+    "dial_code": "351",
+    "aliases_en": ["portugal"],
+    "aliases_zh": ["葡萄牙"]
+  },
+  {
+    "iso2": "QA",
+    "iso3": "QAT",
+    "name_en": "Qatar",
+    "name_zh": "卡塔尔",
+    "dial_code": "974",
+    "aliases_en": ["qatar"],
+    "aliases_zh": ["卡塔尔"]
+  },
+  {
+    "iso2": "RO",
+    "iso3": "ROU",
+    "name_en": "Romania",
+    "name_zh": "罗马尼亚",
+    "dial_code": "40",
+    "aliases_en": ["romania"],
+    "aliases_zh": ["罗马尼亚"]
+  },
+  {
+    "iso2": "RU",
+    "iso3": "RUS",
+    "name_en": "Russia",
+    "name_zh": "俄罗斯",
+    "dial_code": "7",
+    "aliases_en": ["russia"],
+    "aliases_zh": ["俄罗斯", "俄国"]
+  },
+  {
+    "iso2": "RW",
+    "iso3": "RWA",
+    "name_en": "Rwanda",
+    "name_zh": "卢旺达",
+    "dial_code": "250",
+    "aliases_en": ["rwanda"],
+    "aliases_zh": ["卢旺达"]
+  },
+  {
+    "iso2": "SA",
+    "iso3": "SAU",
+    "name_en": "Saudi Arabia",
+    "name_zh": "沙特阿拉伯",
+    "dial_code": "966",
+    "aliases_en": ["saudi arabia", "saudi", "ksa"],
+    "aliases_zh": ["沙特", "沙特阿拉伯"]
+  },
+  {
+    "iso2": "SN",
+    "iso3": "SEN",
+    "name_en": "Senegal",
+    "name_zh": "塞内加尔",
+    "dial_code": "221",
+    "aliases_en": ["senegal"],
+    "aliases_zh": ["塞内加尔"]
+  },
+  {
+    "iso2": "RS",
+    "iso3": "SRB",
+    "name_en": "Serbia",
+    "name_zh": "塞尔维亚",
+    "dial_code": "381",
+    "aliases_en": ["serbia"],
+    "aliases_zh": ["塞尔维亚"]
+  },
+  {
+    "iso2": "SC",
+    "iso3": "SYC",
+    "name_en": "Seychelles",
+    "name_zh": "塞舌尔",
+    "dial_code": "248",
+    "aliases_en": ["seychelles"],
+    "aliases_zh": ["塞舌尔"]
+  },
+  {
+    "iso2": "SL",
+    "iso3": "SLE",
+    "name_en": "Sierra Leone",
+    "name_zh": "塞拉利昂",
+    "dial_code": "232",
+    "aliases_en": ["sierra leone"],
+    "aliases_zh": ["塞拉利昂"]
+  },
+  {
+    "iso2": "SG",
+    "iso3": "SGP",
+    "name_en": "Singapore",
+    "name_zh": "新加坡",
+    "dial_code": "65",
+    "aliases_en": ["singapore"],
+    "aliases_zh": ["新加坡"]
+  },
+  {
+    "iso2": "SK",
+    "iso3": "SVK",
+    "name_en": "Slovakia",
+    "name_zh": "斯洛伐克",
+    "dial_code": "421",
+    "aliases_en": ["slovakia"],
+    "aliases_zh": ["斯洛伐克"]
+  },
+  {
+    "iso2": "SI",
+    "iso3": "SVN",
+    "name_en": "Slovenia",
+    "name_zh": "斯洛文尼亚",
+    "dial_code": "386",
+    "aliases_en": ["slovenia"],
+    "aliases_zh": ["斯洛文尼亚"]
+  },
+  {
+    "iso2": "SO",
+    "iso3": "SOM",
+    "name_en": "Somalia",
+    "name_zh": "索马里",
+    "dial_code": "252",
+    "aliases_en": ["somalia"],
+    "aliases_zh": ["索马里"]
+  },
+  {
+    "iso2": "ZA",
+    "iso3": "ZAF",
+    "name_en": "South Africa",
+    "name_zh": "南非",
+    "dial_code": "27",
+    "aliases_en": ["south africa"],
+    "aliases_zh": ["南非"]
+  },
+  {
+    "iso2": "KR",
+    "iso3": "KOR",
+    "name_en": "South Korea",
+    "name_zh": "韩国",
+    "dial_code": "82",
+    "aliases_en": ["south korea", "korea", "rok"],
+    "aliases_zh": ["韩国", "南韩", "大韩民国"]
+  },
+  {
+    "iso2": "SS",
+    "iso3": "SSD",
+    "name_en": "South Sudan",
+    "name_zh": "南苏丹",
+    "dial_code": "211",
+    "aliases_en": ["south sudan"],
+    "aliases_zh": ["南苏丹"]
+  },
+  {
+    "iso2": "ES",
+    "iso3": "ESP",
+    "name_en": "Spain",
+    "name_zh": "西班牙",
+    "dial_code": "34",
+    "aliases_en": ["spain"],
+    "aliases_zh": ["西班牙"]
+  },
+  {
+    "iso2": "LK",
+    "iso3": "LKA",
+    "name_en": "Sri Lanka",
+    "name_zh": "斯里兰卡",
+    "dial_code": "94",
+    "aliases_en": ["sri lanka"],
+    "aliases_zh": ["斯里兰卡"]
+  },
+  {
+    "iso2": "SD",
+    "iso3": "SDN",
+    "name_en": "Sudan",
+    "name_zh": "苏丹",
+    "dial_code": "249",
+    "aliases_en": ["sudan"],
+    "aliases_zh": ["苏丹"]
+  },
+  {
+    "iso2": "SR",
+    "iso3": "SUR",
+    "name_en": "Suriname",
+    "name_zh": "苏里南",
+    "dial_code": "597",
+    "aliases_en": ["suriname"],
+    "aliases_zh": ["苏里南"]
+  },
+  {
+    "iso2": "SE",
+    "iso3": "SWE",
+    "name_en": "Sweden",
+    "name_zh": "瑞典",
+    "dial_code": "46",
+    "aliases_en": ["sweden"],
+    "aliases_zh": ["瑞典"]
+  },
+  {
+    "iso2": "CH",
+    "iso3": "CHE",
+    "name_en": "Switzerland",
+    "name_zh": "瑞士",
+    "dial_code": "41",
+    "aliases_en": ["switzerland"],
+    "aliases_zh": ["瑞士"]
+  },
+  {
+    "iso2": "SY",
+    "iso3": "SYR",
+    "name_en": "Syria",
+    "name_zh": "叙利亚",
+    "dial_code": "963",
+    "aliases_en": ["syria"],
+    "aliases_zh": ["叙利亚"]
+  },
+  {
+    "iso2": "TW",
+    "iso3": "TWN",
+    "name_en": "Taiwan",
+    "name_zh": "台湾",
+    "dial_code": "886",
+    "aliases_en": ["taiwan"],
+    "aliases_zh": ["台湾", "中国台湾"]
+  },
+  {
+    "iso2": "TJ",
+    "iso3": "TJK",
+    "name_en": "Tajikistan",
+    "name_zh": "塔吉克斯坦",
+    "dial_code": "992",
+    "aliases_en": ["tajikistan"],
+    "aliases_zh": ["塔吉克斯坦"]
+  },
+  {
+    "iso2": "TZ",
+    "iso3": "TZA",
+    "name_en": "Tanzania",
+    "name_zh": "坦桑尼亚",
+    "dial_code": "255",
+    "aliases_en": ["tanzania"],
+    "aliases_zh": ["坦桑尼亚"]
+  },
+  {
+    "iso2": "TH",
+    "iso3": "THA",
+    "name_en": "Thailand",
+    "name_zh": "泰国",
+    "dial_code": "66",
+    "aliases_en": ["thailand"],
+    "aliases_zh": ["泰国"]
+  },
+  {
+    "iso2": "TG",
+    "iso3": "TGO",
+    "name_en": "Togo",
+    "name_zh": "多哥",
+    "dial_code": "228",
+    "aliases_en": ["togo"],
+    "aliases_zh": ["多哥"]
+  },
+  {
+    "iso2": "TT",
+    "iso3": "TTO",
+    "name_en": "Trinidad and Tobago",
+    "name_zh": "特立尼达和多巴哥",
+    "dial_code": "1868",
+    "aliases_en": ["trinidad and tobago", "trinidad"],
+    "aliases_zh": ["特立尼达"]
+  },
+  {
+    "iso2": "TN",
+    "iso3": "TUN",
+    "name_en": "Tunisia",
+    "name_zh": "突尼斯",
+    "dial_code": "216",
+    "aliases_en": ["tunisia"],
+    "aliases_zh": ["突尼斯"]
+  },
+  {
+    "iso2": "TR",
+    "iso3": "TUR",
+    "name_en": "Turkey",
+    "name_zh": "土耳其",
+    "dial_code": "90",
+    "aliases_en": ["turkey"],
+    "aliases_zh": ["土耳其"]
+  },
+  {
+    "iso2": "TM",
+    "iso3": "TKM",
+    "name_en": "Turkmenistan",
+    "name_zh": "土库曼斯坦",
+    "dial_code": "993",
+    "aliases_en": ["turkmenistan"],
+    "aliases_zh": ["土库曼斯坦"]
+  },
+  {
+    "iso2": "UG",
+    "iso3": "UGA",
+    "name_en": "Uganda",
+    "name_zh": "乌干达",
+    "dial_code": "256",
+    "aliases_en": ["uganda"],
+    "aliases_zh": ["乌干达"]
+  },
+  {
+    "iso2": "UA",
+    "iso3": "UKR",
+    "name_en": "Ukraine",
+    "name_zh": "乌克兰",
+    "dial_code": "380",
+    "aliases_en": ["ukraine"],
+    "aliases_zh": ["乌克兰"]
+  },
+  {
+    "iso2": "AE",
+    "iso3": "ARE",
+    "name_en": "United Arab Emirates",
+    "name_zh": "阿联酋",
+    "dial_code": "971",
+    "aliases_en": ["uae", "united arab emirates", "emirates"],
+    "aliases_zh": ["阿联酋", "阿拉伯联合酋长国"]
+  },
+  {
+    "iso2": "GB",
+    "iso3": "GBR",
+    "name_en": "United Kingdom",
+    "name_zh": "英国",
+    "dial_code": "44",
+    "aliases_en": ["uk", "united kingdom", "britain", "great britain"],
+    "aliases_zh": ["英国"]
+  },
+  {
+    "iso2": "US",
+    "iso3": "USA",
+    "name_en": "United States",
+    "name_zh": "美国",
+    "dial_code": "1",
+    "aliases_en": ["usa", "united states", "us", "america"],
+    "aliases_zh": ["美国", "美利坚"]
+  },
+  {
+    "iso2": "UY",
+    "iso3": "URY",
+    "name_en": "Uruguay",
+    "name_zh": "乌拉圭",
+    "dial_code": "598",
+    "aliases_en": ["uruguay"],
+    "aliases_zh": ["乌拉圭"]
+  },
+  {
+    "iso2": "UZ",
+    "iso3": "UZB",
+    "name_en": "Uzbekistan",
+    "name_zh": "乌兹别克斯坦",
+    "dial_code": "998",
+    "aliases_en": ["uzbekistan"],
+    "aliases_zh": ["乌兹别克斯坦"]
+  },
+  {
+    "iso2": "VE",
+    "iso3": "VEN",
+    "name_en": "Venezuela",
+    "name_zh": "委内瑞拉",
+    "dial_code": "58",
+    "aliases_en": ["venezuela"],
+    "aliases_zh": ["委内瑞拉"]
+  },
+  {
+    "iso2": "VN",
+    "iso3": "VNM",
+    "name_en": "Vietnam",
+    "name_zh": "越南",
+    "dial_code": "84",
+    "aliases_en": ["vietnam", "vn"],
+    "aliases_zh": ["越南"]
+  },
+  {
+    "iso2": "YE",
+    "iso3": "YEM",
+    "name_en": "Yemen",
+    "name_zh": "也门",
+    "dial_code": "967",
+    "aliases_en": ["yemen"],
+    "aliases_zh": ["也门"]
+  },
+  {
+    "iso2": "ZM",
+    "iso3": "ZMB",
+    "name_en": "Zambia",
+    "name_zh": "赞比亚",
+    "dial_code": "260",
+    "aliases_en": ["zambia"],
+    "aliases_zh": ["赞比亚"]
+  },
+  {
+    "iso2": "ZW",
+    "iso3": "ZWE",
+    "name_en": "Zimbabwe",
+    "name_zh": "津巴布韦",
+    "dial_code": "263",
+    "aliases_en": ["zimbabwe"],
+    "aliases_zh": ["津巴布韦"]
+  }
+]
