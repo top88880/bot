@@ -433,10 +433,10 @@ def agent_manage(update, context):
             name = agent.get('name', 'Unnamed')
             
             # Truncate name if too long to keep callback_data under 64 bytes
-            display_name = name[:10] + "..." if len(name) > 10 else name
+            display_name = name[:8] + "..." if len(name) > 8 else name
             
             row = []
-            # Add settings button first
+            # Add settings button
             row.append(InlineKeyboardButton(
                 f"⚙️ {display_name}", 
                 callback_data=f"agent_detail {agent_id}"
@@ -445,18 +445,24 @@ def agent_manage(update, context):
             # Add toggle button
             if agent_id in RUNNING_AGENTS:
                 row.append(InlineKeyboardButton(
-                    f"⏸", 
+                    "⏸", 
                     callback_data=f"agent_tgl {agent_id}"
                 ))
             else:
                 row.append(InlineKeyboardButton(
-                    f"▶️", 
+                    "▶️", 
                     callback_data=f"agent_tgl {agent_id}"
                 ))
             
+            # Add owners button
+            row.append(InlineKeyboardButton(
+                "👑",
+                callback_data=f"agent_own {agent_id}"
+            ))
+            
             # Add delete button
             row.append(InlineKeyboardButton(
-                f"🗑", 
+                "🗑", 
                 callback_data=f"agent_del {agent_id}"
             ))
             buttons.append(row)
