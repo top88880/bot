@@ -5369,6 +5369,53 @@ def generate_24bit_uid():
     return hashed_uid[:24]
 
 
+def send_restock_notification(context, product_name, stock_count):
+    """Send restock notification to main bot's notify channel and all agents.
+    
+    Args:
+        context: CallbackContext with bot instance
+        product_name: Name of the restocked product
+        stock_count: Number of items added to stock
+    """
+    try:
+        # Prepare notification message
+        notification_text = f"""🔔 <b>补货通知 / Restock Notification</b>
+
+📦 <b>商品 / Product:</b> {product_name}
+📊 <b>新增库存 / New Stock:</b> {stock_count} 件
+
+🛒 <b>立即购买 / Buy Now</b>
+"""
+        
+        # Send to main bot's notify channel if configured
+        notify_channel_id = os.getenv("NOTIFY_CHANNEL_ID")
+        if notify_channel_id:
+            try:
+                channel_id = int(notify_channel_id)
+                context.bot.send_message(
+                    chat_id=channel_id,
+                    text=notification_text,
+                    parse_mode='HTML'
+                )
+                logging.info(f"✅ Sent restock notification to main channel {channel_id}")
+            except Exception as e:
+                logging.error(f"❌ Failed to send to main notify channel: {e}")
+        
+        # Broadcast to all agent channels
+        try:
+            from bot_integration import broadcast_restock_to_agents
+            summary = broadcast_restock_to_agents(notification_text, parse_mode='HTML')
+            logging.info(
+                f"Agent broadcast summary: {summary['success']} success, "
+                f"{summary['skipped']} skipped, {summary['failed']} failed"
+            )
+        except Exception as e:
+            logging.error(f"❌ Failed to broadcast to agents: {e}")
+            
+    except Exception as e:
+        logging.error(f"❌ Error in send_restock_notification: {e}")
+
+
 def newfl(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
@@ -8541,6 +8588,10 @@ def textkeyboard(update: Update, context: CallbackContext):
                     money = ej_list['money']
                     ej_projectname = ej_list['projectname']
                     fl_pro = fenlei.find_one({'uid': uid})['projectname']
+                    
+                    # Send restock notification if stock was added
+                    if count > 0:
+                        send_restock_notification(context, f"{fl_pro} - {ej_projectname}", count)
 
                     keyboard = [
                         [InlineKeyboardButton('取出所有库存', callback_data=f'qchuall {nowuid}'),
@@ -8634,6 +8685,11 @@ def textkeyboard(update: Update, context: CallbackContext):
                     money = ej_list['money']
                     ej_projectname = ej_list['projectname']
                     fl_pro = fenlei.find_one({'uid': uid})['projectname']
+                    
+                    # Send restock notification if stock was added
+                    if count > 0:
+                        send_restock_notification(context, f"{fl_pro} - {ej_projectname}", count)
+                    
                     keyboard = [
                         [InlineKeyboardButton('取出所有库存', callback_data=f'qchuall {nowuid}'),
                          InlineKeyboardButton('此商品使用说明', callback_data=f'update_sysm {nowuid}')],
@@ -8717,6 +8773,11 @@ def textkeyboard(update: Update, context: CallbackContext):
                     money = ej_list['money']
                     ej_projectname = ej_list['projectname']
                     fl_pro = fenlei.find_one({'uid': uid})['projectname']
+                    
+                    # Send restock notification if stock was added
+                    if count > 0:
+                        send_restock_notification(context, f"{fl_pro} - {ej_projectname}", count)
+                    
                     keyboard = [
                         [InlineKeyboardButton('取出所有库存', callback_data=f'qchuall {nowuid}'),
                          InlineKeyboardButton('此商品使用说明', callback_data=f'update_sysm {nowuid}')],
@@ -8792,6 +8853,11 @@ def textkeyboard(update: Update, context: CallbackContext):
                     money = ej_list['money']
                     ej_projectname = ej_list['projectname']
                     fl_pro = fenlei.find_one({'uid': uid})['projectname']
+                    
+                    # Send restock notification if stock was added
+                    if count > 0:
+                        send_restock_notification(context, f"{fl_pro} - {ej_projectname}", count)
+                    
                     keyboard = [
                         [InlineKeyboardButton('取出所有库存', callback_data=f'qchuall {nowuid}'),
                          InlineKeyboardButton('此商品使用说明', callback_data=f'update_sysm {nowuid}')],

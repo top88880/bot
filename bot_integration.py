@@ -8,9 +8,11 @@ import os
 import json
 import logging
 import threading
+import time
 from datetime import datetime
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
 from telegram.ext import CallbackQueryHandler
+from telegram.error import TelegramError, RetryAfter
 
 # Import database
 from mongo import agents, user
@@ -53,6 +55,161 @@ def get_all_agents():
     
     # Fallback to JSON file
     return load_agents_from_file()
+
+
+def normalize_chat_id(chat_id_str):
+    """Normalize chat_id to integer format.
+    
+    Args:
+        chat_id_str: Chat ID as string (may be @username, -100..., or numeric)
+    
+    Returns:
+        int or str: Normalized chat_id (int if numeric, str if @username)
+    """
+    if not chat_id_str:
+        return None
+    
+    chat_id_str = str(chat_id_str).strip()
+    
+    # If it starts with @, return as is (username)
+    if chat_id_str.startswith('@'):
+        return chat_id_str
+    
+    # Try to convert to int
+    try:
+        return int(chat_id_str)
+    except ValueError:
+        logging.warning(f"Invalid chat_id format: {chat_id_str}")
+        return None
+
+
+def broadcast_restock_to_agents(text, parse_mode=None):
+    """Broadcast restock notification to all agent notify channels.
+    
+    Iterates through all agents and sends the restock notification to each
+    agent's configured notify_channel_id using their bot token.
+    
+    Args:
+        text: Message text to broadcast
+        parse_mode: Optional parse mode (e.g., 'HTML', 'Markdown')
+    
+    Returns:
+        dict: Summary with keys:
+            - total: Total agents processed
+            - success: Number of successful sends
+            - skipped: Number of agents without notify_channel_id
+            - failed: Number of failed sends
+            - results: List of per-agent results
+    """
+    logging.info(f"Starting restock broadcast to agents: {text[:50]}...")
+    
+    agents_list = get_all_agents()
+    
+    summary = {
+        'total': len(agents_list),
+        'success': 0,
+        'skipped': 0,
+        'failed': 0,
+        'results': []
+    }
+    
+    if not agents_list:
+        logging.info("No agents found, skipping broadcast")
+        return summary
+    
+    for agent in agents_list:
+        agent_id = agent.get('agent_id', 'unknown')
+        agent_name = agent.get('name', 'Unnamed')
+        token = agent.get('token')
+        settings = agent.get('settings', {})
+        notify_channel_id = settings.get('notify_channel_id')
+        
+        result = {
+            'agent_id': agent_id,
+            'agent_name': agent_name,
+            'status': 'unknown'
+        }
+        
+        # Skip if no notify_channel_id configured
+        if not notify_channel_id:
+            result['status'] = 'skipped'
+            result['reason'] = 'No notify_channel_id configured'
+            summary['skipped'] += 1
+            summary['results'].append(result)
+            logging.debug(f"Skipping agent {agent_id} ({agent_name}): no notify_channel_id")
+            continue
+        
+        # Skip if no token
+        if not token:
+            result['status'] = 'skipped'
+            result['reason'] = 'No token available'
+            summary['skipped'] += 1
+            summary['results'].append(result)
+            logging.warning(f"Skipping agent {agent_id} ({agent_name}): no token")
+            continue
+        
+        # Normalize chat_id
+        chat_id = normalize_chat_id(notify_channel_id)
+        if chat_id is None:
+            result['status'] = 'failed'
+            result['reason'] = f'Invalid chat_id format: {notify_channel_id}'
+            summary['failed'] += 1
+            summary['results'].append(result)
+            logging.error(f"Agent {agent_id} ({agent_name}): invalid chat_id {notify_channel_id}")
+            continue
+        
+        try:
+            # Try to use running agent's bot if available
+            if agent_id in RUNNING_AGENTS:
+                bot = RUNNING_AGENTS[agent_id].bot
+                logging.debug(f"Using running agent bot for {agent_id}")
+            else:
+                # Create temporary bot instance
+                bot = Bot(token=token)
+                logging.debug(f"Created temporary bot for {agent_id}")
+            
+            # Send the message
+            bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=parse_mode
+            )
+            
+            result['status'] = 'success'
+            result['chat_id'] = chat_id
+            summary['success'] += 1
+            logging.info(f"✅ Sent restock notification to agent {agent_id} ({agent_name}) channel {chat_id}")
+            
+        except RetryAfter as e:
+            # Rate limit hit
+            result['status'] = 'failed'
+            result['reason'] = f'Rate limited: retry after {e.retry_after}s'
+            summary['failed'] += 1
+            logging.warning(f"⚠️ Rate limit for agent {agent_id} ({agent_name}): retry after {e.retry_after}s")
+            
+        except TelegramError as e:
+            result['status'] = 'failed'
+            result['reason'] = f'Telegram error: {str(e)}'
+            summary['failed'] += 1
+            logging.error(f"❌ Failed to send to agent {agent_id} ({agent_name}): {e}")
+            
+        except Exception as e:
+            result['status'] = 'failed'
+            result['reason'] = f'Unexpected error: {str(e)}'
+            summary['failed'] += 1
+            logging.error(f"❌ Unexpected error for agent {agent_id} ({agent_name}): {e}")
+        
+        summary['results'].append(result)
+        
+        # Throttle between sends to avoid hitting rate limits
+        time.sleep(0.5)
+    
+    logging.info(
+        f"Restock broadcast complete: {summary['success']} success, "
+        f"{summary['skipped']} skipped, {summary['failed']} failed"
+    )
+    
+    return summary
 
 
 def save_agent(token, name, owner_user_id=None):
