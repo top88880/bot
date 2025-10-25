@@ -11254,6 +11254,7 @@ def register_common_handlers(dispatcher, job_queue):
     # Import admin agents management handlers
     try:
         from admin.agents_admin import (
+            agent_panel_callback, agent_list_view_callback,
             agent_detail_callback, agent_settings_callback,
             admin_set_cs_callback, admin_set_official_callback,
             admin_set_restock_callback, admin_set_tutorial_callback,
@@ -11262,6 +11263,8 @@ def register_common_handlers(dispatcher, job_queue):
         )
         
         # Register admin agent management callbacks
+        dispatcher.add_handler(CallbackQueryHandler(agent_panel_callback, pattern='^agent_panel$'), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_list_view_callback, pattern='^agent_list_view$'), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_detail_callback, pattern='^agent_detail '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(agent_settings_callback, pattern='^agent_settings '), group=-1)
         dispatcher.add_handler(CallbackQueryHandler(admin_set_cs_callback, pattern='^admin_set_cs '), group=-1)
