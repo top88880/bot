@@ -30,6 +30,7 @@ I18N = {
         'restock_group': '补货通知群',
         'tutorial_link': '教程链接',
         'notify_channel_id': '通知频道ID',
+        'notify_group_id': '通知群组ID',
         'not_set': '未设置',
         'panel_tip': '提示: 这些设置仅影响您的代理机器人，不会影响主机器人。',
         'set_markup': '💰 设置差价',
@@ -69,6 +70,7 @@ I18N = {
         'restock_group': 'Restock Group',
         'tutorial_link': 'Tutorial Link',
         'notify_channel_id': 'Notify Channel ID',
+        'notify_group_id': 'Notify Group ID',
         'not_set': 'Not Set',
         'panel_tip': 'Tip: These settings only affect your agent bot, not the main bot.',
         'set_markup': '💰 Set Markup',
@@ -379,13 +381,20 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
     profit_frozen = agent.get('profit_frozen_usdt', '0')
     total_paid = agent.get('total_paid_usdt', '0')
     
-    # Get settings (new structure)
+    # Get settings (new structure) - READ ONLY in child agents
     settings = agent.get('settings', {})
     customer_service = settings.get('customer_service') or t(lang, 'not_set')
     official_channel = settings.get('official_channel') or t(lang, 'not_set')
     restock_group = settings.get('restock_group') or t(lang, 'not_set')
     tutorial_link = settings.get('tutorial_link') or t(lang, 'not_set')
     notify_channel_id = settings.get('notify_channel_id') or t(lang, 'not_set')
+    notify_group_id = settings.get('notify_group_id') or t(lang, 'not_set')
+    
+    # Add read-only note for child agents
+    readonly_note = "\n\n<i>💡 " + (
+        "联系方式由主机器人管理员统一设置，代理机器人只读。" if lang == 'zh' 
+        else "Contact settings are managed by main bot admins and are read-only in agent bots."
+    ) + "</i>"
     
     text = f"""<b>{t(lang, 'agent_panel_title')} - {name}</b>
 
@@ -401,25 +410,16 @@ def show_agent_panel(update: Update, context: CallbackContext, agent: dict = Non
 • {t(lang, 'restock_group')}: {restock_group}
 • {t(lang, 'tutorial_link')}: {tutorial_link}
 • {t(lang, 'notify_channel_id')}: {notify_channel_id}
-
-<i>{t(lang, 'panel_tip')}</i>"""
+• {t(lang, 'notify_group_id')}: {notify_group_id}
+{readonly_note}"""
     
-    # Build keyboard
+    # Build keyboard - REMOVED contact editing buttons for child agents
     keyboard = [
         [
             InlineKeyboardButton(t(lang, 'set_markup'), callback_data="agent_set_markup"),
             InlineKeyboardButton(t(lang, 'initiate_withdrawal'), callback_data="agent_withdraw_init")
         ],
         [
-            InlineKeyboardButton(t(lang, 'set_customer_service'), callback_data="agent_cfg_cs"),
-            InlineKeyboardButton(t(lang, 'set_official_channel'), callback_data="agent_cfg_official")
-        ],
-        [
-            InlineKeyboardButton(t(lang, 'set_restock_group'), callback_data="agent_cfg_restock"),
-            InlineKeyboardButton(t(lang, 'set_tutorial_link'), callback_data="agent_cfg_tutorial")
-        ],
-        [
-            InlineKeyboardButton(t(lang, 'set_notify_channel'), callback_data="agent_cfg_notify"),
             InlineKeyboardButton(t(lang, 'manage_link_buttons'), callback_data="agent_links_btns")
         ],
         [
@@ -689,175 +689,84 @@ def agent_set_link_callback(update: Update, context: CallbackContext):
     )
 
 
+# DEPRECATED: Contact setting callbacks are now managed by main bot admins only
+# Child agents show read-only contact information
 def agent_cfg_cs_callback(update: Update, context: CallbackContext):
-    """Initiate customer service setting flow."""
+    """DEPRECATED: Contact settings now managed by main bot admin only."""
     query = update.callback_query
-    query.answer()
-    
-    agent_id = context.bot_data.get('agent_id')
-    if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
-        return
-    
-    # Set state
-    context.user_data['agent_backend_state'] = 'awaiting_cs_input'
-    
-    text = """<b>📞 设置客服</b>
-
-请发送客服联系方式
-
-支持的格式：
-• 单个客服: <code>@customer_service</code>
-• 多个客服: <code>@cs1 @cs2 @cs3</code> (用空格分隔)
-• 客服链接: <code>https://t.me/customer_service</code>
-
-发送 <code>清除</code> 可以清除当前设置"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    query.answer("⚠️ 联系方式由主机器人管理员统一设置", show_alert=True)
+    logging.warning("Attempt to use deprecated agent_cfg_cs_callback - settings now admin-only")
 
 
 def agent_cfg_official_callback(update: Update, context: CallbackContext):
-    """Initiate official channel setting flow."""
+    """DEPRECATED: Contact settings now managed by main bot admin only."""
     query = update.callback_query
-    query.answer()
-    
-    agent_id = context.bot_data.get('agent_id')
-    if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
-        return
-    
-    # Set state
-    context.user_data['agent_backend_state'] = 'awaiting_official_input'
-    
-    text = """<b>📢 设置官方频道</b>
-
-请发送官方频道链接
-
-支持的格式：
-• 频道用户名: <code>@yourchannel</code>
-• 频道链接: <code>https://t.me/yourchannel</code>
-
-发送 <code>清除</code> 可以清除当前设置"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    query.answer("⚠️ 联系方式由主机器人管理员统一设置", show_alert=True)
+    logging.warning("Attempt to use deprecated agent_cfg_official_callback - settings now admin-only")
 
 
 def agent_cfg_restock_callback(update: Update, context: CallbackContext):
-    """Initiate restock group setting flow."""
+    """DEPRECATED: Contact settings now managed by main bot admin only."""
     query = update.callback_query
-    query.answer()
-    
-    agent_id = context.bot_data.get('agent_id')
-    if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
-        return
-    
-    # Set state
-    context.user_data['agent_backend_state'] = 'awaiting_restock_input'
-    
-    text = """<b>📣 设置补货通知群</b>
-
-请发送补货通知群链接
-
-支持的格式：
-• 群组用户名: <code>@yourgroup</code>
-• 群组链接: <code>https://t.me/yourgroup</code>
-• 群组邀请链接: <code>https://t.me/+xxxxx</code>
-
-发送 <code>清除</code> 可以清除当前设置"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    query.answer("⚠️ 联系方式由主机器人管理员统一设置", show_alert=True)
+    logging.warning("Attempt to use deprecated agent_cfg_restock_callback - settings now admin-only")
 
 
 def agent_cfg_tutorial_callback(update: Update, context: CallbackContext):
-    """Initiate tutorial link setting flow."""
+    """DEPRECATED: Contact settings now managed by main bot admin only."""
     query = update.callback_query
-    query.answer()
-    
-    agent_id = context.bot_data.get('agent_id')
-    if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
-        return
-    
-    # Set state
-    context.user_data['agent_backend_state'] = 'awaiting_tutorial_input'
-    
-    text = """<b>📖 设置教程链接</b>
-
-请发送教程页面链接
-
-<b>要求:</b>
-• 必须是有效的 URL (http:// 或 https://)
-• 可以是任何网页链接
-
-示例:
-• <code>https://example.com/tutorial</code>
-• <code>https://docs.google.com/document/xxx</code>
-
-发送 <code>清除</code> 可以清除当前设置"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    query.answer("⚠️ 联系方式由主机器人管理员统一设置", show_alert=True)
+    logging.warning("Attempt to use deprecated agent_cfg_tutorial_callback - settings now admin-only")
 
 
 def agent_cfg_notify_callback(update: Update, context: CallbackContext):
-    """Initiate notify channel ID setting flow."""
+    """DEPRECATED: Contact settings now managed by main bot admin only."""
     query = update.callback_query
-    query.answer()
-    
-    agent_id = context.bot_data.get('agent_id')
-    if not agent_id:
-        query.edit_message_text("❌ Not an agent bot.")
-        return
-    
-    # Set state
-    context.user_data['agent_backend_state'] = 'awaiting_notify_input'
-    
-    text = """<b>🔔 设置通知频道ID</b>
+    query.answer("⚠️ 通知设置由主机器人管理员统一设置", show_alert=True)
+    logging.warning("Attempt to use deprecated agent_cfg_notify_callback - settings now admin-only")
 
-请发送通知频道的数字ID
 
-<b>如何获取频道ID:</b>
-1. 将机器人添加到您的频道
-2. 在频道发送一条消息
-3. 使用 @username_to_id_bot 等工具获取频道ID
-
-<b>格式要求:</b>
-• 必须是数字 (通常以 -100 开头)
-• 示例: <code>-100123456789</code>
-
-发送 <code>清除</code> 可以清除当前设置"""
-    
-    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
-    
-    query.edit_message_text(
-        text=text,
-        parse_mode='HTML',
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+# LEGACY CODE BELOW - Kept for reference but disabled
+# def agent_cfg_cs_callback(update: Update, context: CallbackContext):
+#     """Initiate customer service setting flow."""
+#     query = update.callback_query
+#     query.answer()
+#     
+#     agent_id = context.bot_data.get('agent_id')
+#     if not agent_id:
+#         query.edit_message_text("❌ Not an agent bot.")
+#         return
+#     
+#     # Set state
+#     context.user_data['agent_backend_state'] = 'awaiting_cs_input'
+#     
+#     text = """<b>📞 设置客服</b>
+# 
+# 请发送客服联系方式
+# 
+# 支持的格式：
+# • 单个客服: <code>@customer_service</code>
+# • 多个客服: <code>@cs1 @cs2 @cs3</code> (用空格分隔)
+# • 客服链接: <code>https://t.me/customer_service</code>
+# 
+# 发送 <code>清除</code> 可以清除当前设置"""
+#     
+#     keyboard = [[InlineKeyboardButton("❌ 取消", callback_data="agent_panel")]]
+#     
+#     query.edit_message_text(
+#         text=text,
+#         parse_mode='HTML',
+#         reply_markup=InlineKeyboardMarkup(keyboard)
+#     )
+# 
+# 
+# def agent_cfg_official_callback(update: Update, context: CallbackContext):
+#     """Initiate official channel setting flow."""
+#     query = update.callback_query
+#     query.answer()
+# 
+# 
+# The above legacy code has been removed. Contact settings are now managed by main bot admins only.
 
 
 def agent_links_btns_callback(update: Update, context: CallbackContext):
@@ -985,16 +894,17 @@ def agent_text_input_handler(update: Update, context: CallbackContext):
             handle_withdraw_amount_input(update, context, agent_id, text)
         elif state == 'awaiting_withdraw_address':
             handle_withdraw_address_input(update, context, agent_id, text)
-        elif state == 'awaiting_cs_input':
-            handle_setting_input(update, context, agent_id, 'customer_service', text, '客服')
-        elif state == 'awaiting_official_input':
-            handle_setting_input(update, context, agent_id, 'official_channel', text, '官方频道')
-        elif state == 'awaiting_restock_input':
-            handle_setting_input(update, context, agent_id, 'restock_group', text, '补货通知群')
-        elif state == 'awaiting_tutorial_input':
-            handle_tutorial_input(update, context, agent_id, text)
-        elif state == 'awaiting_notify_input':
-            handle_notify_channel_input(update, context, agent_id, text)
+        # Contact settings removed - now managed by main bot admin only
+        # elif state == 'awaiting_cs_input':
+        #     handle_setting_input(update, context, agent_id, 'customer_service', text, '客服')
+        # elif state == 'awaiting_official_input':
+        #     handle_setting_input(update, context, agent_id, 'official_channel', text, '官方频道')
+        # elif state == 'awaiting_restock_input':
+        #     handle_setting_input(update, context, agent_id, 'restock_group', text, '补货通知群')
+        # elif state == 'awaiting_tutorial_input':
+        #     handle_tutorial_input(update, context, agent_id, text)
+        # elif state == 'awaiting_notify_input':
+        #     handle_notify_channel_input(update, context, agent_id, text)
         elif state == 'awaiting_button_title':
             context.user_data['button_title'] = text
             context.user_data['agent_backend_state'] = 'awaiting_button_url'
