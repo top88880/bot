@@ -341,3 +341,423 @@ def agent_list_view_callback(update: Update, context: CallbackContext):
     except Exception as e:
         logging.error(f"Error in agent_list_view_callback: {e}")
         query.edit_message_text(f"❌ Error loading agent list: {e}")
+
+
+def agent_detail_callback(update: Update, context: CallbackContext):
+    """Show detailed view of a specific agent with management options."""
+    query = update.callback_query
+    query.answer()
+    
+    try:
+        # Extract agent_id from callback_data "agent_detail <agent_id>"
+        agent_id = query.data.split(' ', 1)[1]
+        
+        agents_collection = bot_db['agents']
+        agent = get_agent_by_id(agents_collection, agent_id)
+        
+        if not agent:
+            query.edit_message_text(f"❌ Agent '{agent_id}' not found")
+            return
+        
+        name = agent.get('name', 'Unnamed')
+        status = agent.get('status', 'unknown')
+        running_agent_ids = set(get_running_agents())
+        is_running = agent_id in running_agent_ids
+        
+        text = f"""<b>🤖 Agent Details: {name}</b>
+
+<b>ID:</b> <code>{agent_id}</code>
+<b>Status:</b> {status} {'🟢 Running' if is_running else '🔴 Stopped'}
+<b>Created:</b> {agent.get('created_at', 'N/A')}
+
+<b>Management Options:</b>"""
+        
+        keyboard = [
+            [InlineKeyboardButton("🛠 联系方式设置", callback_data=f"agent_settings {agent_id}")],
+            [InlineKeyboardButton("⬅️ Back to List", callback_data="agent_list_view")],
+            [InlineKeyboardButton("❌ Close", callback_data=f"close {query.from_user.id}")]
+        ]
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in agent_detail_callback: {e}")
+        query.edit_message_text(f"❌ Error loading agent details: {e}")
+
+
+def agent_settings_callback(update: Update, context: CallbackContext):
+    """Show agent contact settings management panel."""
+    query = update.callback_query
+    query.answer()
+    
+    try:
+        # Extract agent_id from callback_data "agent_settings <agent_id>"
+        agent_id = query.data.split(' ', 1)[1]
+        
+        agents_collection = bot_db['agents']
+        agent = get_agent_by_id(agents_collection, agent_id)
+        
+        if not agent:
+            query.edit_message_text(f"❌ Agent '{agent_id}' not found")
+            return
+        
+        name = agent.get('name', 'Unnamed')
+        settings = agent.get('settings', {})
+        
+        # Get current settings
+        customer_service = settings.get('customer_service') or '未设置'
+        official_channel = settings.get('official_channel') or '未设置'
+        restock_group = settings.get('restock_group') or '未设置'
+        tutorial_link = settings.get('tutorial_link') or '未设置'
+        notify_channel_id = settings.get('notify_channel_id') or '未设置'
+        notify_group_id = settings.get('notify_group_id') or '未设置'
+        
+        text = f"""<b>🛠 代理联系方式设置 - {name}</b>
+
+<b>当前设置:</b>
+• 客服: {customer_service}
+• 官方频道: {official_channel}
+• 补货通知群: {restock_group}
+• 教程链接: {tutorial_link}
+• 通知频道ID: {notify_channel_id}
+• 通知群组ID: {notify_group_id}
+
+选择要设置的项目:"""
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("📞 设置客服", callback_data=f"admin_set_cs {agent_id}"),
+                InlineKeyboardButton("📢 设置官方频道", callback_data=f"admin_set_official {agent_id}")
+            ],
+            [
+                InlineKeyboardButton("📣 设置补货通知群", callback_data=f"admin_set_restock {agent_id}"),
+                InlineKeyboardButton("📖 设置教程链接", callback_data=f"admin_set_tutorial {agent_id}")
+            ],
+            [
+                InlineKeyboardButton("🔔 设置通知频道ID", callback_data=f"admin_set_notify_channel {agent_id}"),
+                InlineKeyboardButton("👥 设置通知群组ID", callback_data=f"admin_set_notify_group {agent_id}")
+            ],
+            [InlineKeyboardButton("⬅️ 返回", callback_data=f"agent_detail {agent_id}")],
+            [InlineKeyboardButton("❌ 关闭", callback_data=f"close {query.from_user.id}")]
+        ]
+        
+        query.edit_message_text(
+            text=text,
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        
+    except Exception as e:
+        logging.error(f"Error in agent_settings_callback: {e}")
+        query.edit_message_text(f"❌ Error loading agent settings: {e}")
+
+
+# Admin setting handlers
+def admin_set_cs_callback(update: Update, context: CallbackContext):
+    """Initiate customer service setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'customer_service',
+        'field_name': '客服',
+        'state': 'awaiting_input'
+    }
+    
+    text = """<b>📞 设置代理客服</b>
+
+请发送客服联系方式
+
+支持的格式：
+• 单个客服: <code>@customer_service</code>
+• 多个客服: <code>@cs1 @cs2 @cs3</code> (用空格分隔)
+• 客服链接: <code>https://t.me/customer_service</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def admin_set_official_callback(update: Update, context: CallbackContext):
+    """Initiate official channel setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'official_channel',
+        'field_name': '官方频道',
+        'state': 'awaiting_input'
+    }
+    
+    text = """<b>📢 设置代理官方频道</b>
+
+请发送官方频道链接
+
+支持的格式：
+• 频道用户名: <code>@yourchannel</code>
+• 频道链接: <code>https://t.me/yourchannel</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def admin_set_restock_callback(update: Update, context: CallbackContext):
+    """Initiate restock group setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'restock_group',
+        'field_name': '补货通知群',
+        'state': 'awaiting_input'
+    }
+    
+    text = """<b>📣 设置代理补货通知群</b>
+
+请发送补货通知群链接
+
+支持的格式：
+• 群组用户名: <code>@yourgroup</code>
+• 群组链接: <code>https://t.me/yourgroup</code>
+• 群组邀请链接: <code>https://t.me/+xxxxx</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def admin_set_tutorial_callback(update: Update, context: CallbackContext):
+    """Initiate tutorial link setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'tutorial_link',
+        'field_name': '教程链接',
+        'state': 'awaiting_tutorial_input'
+    }
+    
+    text = """<b>📖 设置代理教程链接</b>
+
+请发送教程页面链接
+
+<b>要求:</b>
+• 必须是有效的 URL (http:// 或 https://)
+• 可以是任何网页链接
+
+示例:
+• <code>https://example.com/tutorial</code>
+• <code>https://docs.google.com/document/xxx</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def admin_set_notify_channel_callback(update: Update, context: CallbackContext):
+    """Initiate notify channel ID setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'notify_channel_id',
+        'field_name': '通知频道ID',
+        'state': 'awaiting_notify_input'
+    }
+    
+    text = """<b>🔔 设置代理通知频道ID</b>
+
+请发送通知频道的数字ID或用户名
+
+<b>如何获取频道ID:</b>
+1. 将机器人添加到您的频道
+2. 在频道发送一条消息
+3. 使用 @username_to_id_bot 等工具获取频道ID
+
+<b>格式要求:</b>
+• 数字ID (通常以 -100 开头): <code>-100123456789</code>
+• 或频道用户名: <code>@yourchannel</code>
+
+发送 <code>清除</code> 可以清除当前设置"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+def admin_set_notify_group_callback(update: Update, context: CallbackContext):
+    """Initiate notify group ID setting for agent."""
+    query = update.callback_query
+    query.answer()
+    
+    agent_id = query.data.split(' ', 1)[1]
+    context.user_data['admin_setting_flow'] = {
+        'agent_id': agent_id,
+        'field': 'notify_group_id',
+        'field_name': '通知群组ID',
+        'state': 'awaiting_notify_input'
+    }
+    
+    text = """<b>👥 设置代理通知群组ID</b>
+
+请发送通知群组的数字ID或用户名
+
+<b>如何获取群组ID:</b>
+1. 将机器人添加到您的群组
+2. 在群组发送一条消息
+3. 使用 @username_to_id_bot 等工具获取群组ID
+
+<b>格式要求:</b>
+• 数字ID (通常以负数开头): <code>-123456789</code>
+• 或群组用户名: <code>@yourgroup</code>
+
+发送 <code>清除</code> 可以清除当前设置
+
+<b>注意:</b> 群组主题支持 (message_thread_id) 将在未来版本中添加"""
+    
+    keyboard = [[InlineKeyboardButton("❌ 取消", callback_data=f"agent_settings {agent_id}")]]
+    
+    query.edit_message_text(
+        text=text,
+        parse_mode='HTML',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+
+def admin_setting_text_input(update: Update, context: CallbackContext):
+    """Handle text input for admin setting flows."""
+    from datetime import datetime
+    from mongo import agents
+    
+    flow = context.user_data.get("admin_setting_flow")
+    
+    if not flow or flow.get("state") not in ["awaiting_input", "awaiting_tutorial_input", "awaiting_notify_input"]:
+        return  # Not in a flow
+    
+    agent_id = flow["agent_id"]
+    field = flow["field"]
+    field_name = flow["field_name"]
+    text = update.message.text.strip()
+    
+    try:
+        # Handle clearing
+        if text == "清除":
+            agents.update_one(
+                {"agent_id": agent_id},
+                {
+                    "$set": {
+                        f"settings.{field}": None,
+                        "updated_at": datetime.now()
+                    },
+                    "$unset": {f"settings.{field}": ""}
+                }
+            )
+            
+            context.user_data.pop("admin_setting_flow", None)
+            update.message.reply_text(f"✅ {field_name}已清除")
+            return
+        
+        # Validate based on field type
+        if flow["state"] == "awaiting_tutorial_input":
+            # Validate URL
+            if not (text.startswith("http://") or text.startswith("https://")):
+                update.message.reply_text(
+                    "❌ 教程链接必须是有效的URL\n\n"
+                    "请发送以 http:// 或 https:// 开头的链接\n\n"
+                    "示例: <code>https://example.com/tutorial</code>",
+                    parse_mode="HTML"
+                )
+                return
+        elif flow["state"] == "awaiting_notify_input":
+            # Validate numeric ID or @username
+            if not (text.startswith("@") or text.lstrip("-").isdigit()):
+                update.message.reply_text(
+                    "❌ 通知ID格式错误\n\n"
+                    "请发送有效的频道/群组ID或用户名\n\n"
+                    "示例: <code>-100123456789</code> 或 <code>@yourchannel</code>",
+                    parse_mode="HTML"
+                )
+                return
+        else:
+            # General validation - allow @username or URLs
+            if not (text.startswith("@") or text.startswith("http://") or text.startswith("https://")):
+                update.message.reply_text(
+                    "❌ 格式错误\n\n"
+                    "请发送以下格式之一:\n"
+                    "• @username (可以用空格分隔多个)\n"
+                    "• https://t.me/username\n"
+                    "• https://example.com"
+                )
+                return
+        
+        # Update setting
+        agents.update_one(
+            {"agent_id": agent_id},
+            {
+                "$set": {
+                    f"settings.{field}": text,
+                    "updated_at": datetime.now()
+                }
+            }
+        )
+        
+        context.user_data.pop("admin_setting_flow", None)
+        update.message.reply_text(
+            f"✅ {field_name}设置成功！\n\n"
+            f"<b>代理ID:</b> <code>{agent_id}</code>\n"
+            f"<b>新设置:</b> {text}\n\n"
+            f"此设置将立即在代理机器人中生效（只读显示）。",
+            parse_mode="HTML"
+        )
+        
+        logging.info(f"Admin set {field} for agent {agent_id}: {text}")
+        
+    except Exception as e:
+        logging.error(f"Error in admin_setting_text_input: {e}")
+        update.message.reply_text(f"❌ 设置失败: {e}")
+        context.user_data.pop("admin_setting_flow", None)
+

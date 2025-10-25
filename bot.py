@@ -11227,6 +11227,30 @@ def register_common_handlers(dispatcher, job_queue):
     except ImportError as e:
         logging.warning(f"Could not import admin withdrawal commands: {e}")
     
+    # Import admin agents management handlers
+    try:
+        from admin.agents_admin import (
+            agent_detail_callback, agent_settings_callback,
+            admin_set_cs_callback, admin_set_official_callback,
+            admin_set_restock_callback, admin_set_tutorial_callback,
+            admin_set_notify_channel_callback, admin_set_notify_group_callback,
+            admin_setting_text_input
+        )
+        
+        # Register admin agent management callbacks
+        dispatcher.add_handler(CallbackQueryHandler(agent_detail_callback, pattern='^agent_detail '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(agent_settings_callback, pattern='^agent_settings '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_cs_callback, pattern='^admin_set_cs '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_official_callback, pattern='^admin_set_official '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_restock_callback, pattern='^admin_set_restock '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_tutorial_callback, pattern='^admin_set_tutorial '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_notify_channel_callback, pattern='^admin_set_notify_channel '), group=-1)
+        dispatcher.add_handler(CallbackQueryHandler(admin_set_notify_group_callback, pattern='^admin_set_notify_group '), group=-1)
+        
+        logging.info("✅ Admin agent management handlers registered")
+    except ImportError as e:
+        logging.warning(f"Could not import admin agents_admin handlers: {e}")
+    
     # Register TRC20 payment admin handlers with group=-1
     try:
         dispatcher.add_handler(CallbackQueryHandler(trc20_admin_panel, pattern='^trc20_admin$'), group=-1)
@@ -11391,6 +11415,16 @@ def register_common_handlers(dispatcher, job_queue):
             Filters.chat_type.private & Filters.text & ~Filters.command,
             agent_text_input_handler, run_async=True
         ), group=-1)
+    except ImportError:
+        pass
+    
+    # Admin agent settings text handler (must be before general text handler)
+    try:
+        from admin.agents_admin import admin_setting_text_input
+        dispatcher.add_handler(MessageHandler(
+            Filters.chat_type.private & Filters.text & ~Filters.command,
+            admin_setting_text_input, run_async=True
+        ), group=-2)  # Higher priority than agent backend
     except ImportError:
         pass
 

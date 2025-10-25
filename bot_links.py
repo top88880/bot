@@ -27,6 +27,7 @@ def get_links_for_child_agent(context: CallbackContext) -> Dict[str, Optional[st
         - restock_group: Restock notification group link
         - tutorial_link: Tutorial/help link
         - notify_channel_id: Notification channel ID (as string or int)
+        - notify_group_id: Notification group ID (as string or int)
         - extra_links: List of extra link objects
         
         Returns None for each field if not set or if this is the main bot.
@@ -41,6 +42,7 @@ def get_links_for_child_agent(context: CallbackContext) -> Dict[str, Optional[st
             'restock_group': None,
             'tutorial_link': None,
             'notify_channel_id': None,
+            'notify_group_id': None,
             'extra_links': []
         }
     
@@ -57,6 +59,7 @@ def get_links_for_child_agent(context: CallbackContext) -> Dict[str, Optional[st
                 'restock_group': None,
                 'tutorial_link': None,
                 'notify_channel_id': None,
+                'notify_group_id': None,
                 'extra_links': []
             }
         
@@ -73,6 +76,7 @@ def get_links_for_child_agent(context: CallbackContext) -> Dict[str, Optional[st
             'restock_group': settings.get('restock_group'),
             'tutorial_link': settings.get('tutorial_link'),
             'notify_channel_id': settings.get('notify_channel_id'),
+            'notify_group_id': settings.get('notify_group_id'),
             'extra_links': settings.get('extra_links', [])
         }
     except Exception as e:
@@ -83,6 +87,7 @@ def get_links_for_child_agent(context: CallbackContext) -> Dict[str, Optional[st
             'restock_group': None,
             'tutorial_link': None,
             'notify_channel_id': None,
+            'notify_group_id': None,
             'extra_links': []
         }
 
@@ -300,6 +305,48 @@ def get_notify_channel_id_for_child(context: CallbackContext) -> Optional[int]:
         return int(notify_channel_id)
     except (ValueError, TypeError):
         logging.warning(f"Invalid notify_channel_id for agent {agent_id}: {notify_channel_id}")
+        return None
+
+
+def get_notify_group_id_for_child(context: CallbackContext) -> Optional[int]:
+    """Get notification group ID for sending group notifications.
+    
+    For child agents, returns the agent's notify_group_id.
+    For the main bot, returns None (not typically used for main bot).
+    
+    NOTE: This supports basic group notifications. Future versions may add
+    message_thread_id parameter for topic-aware groups.
+    
+    Args:
+        context: CallbackContext to get agent info
+    
+    Returns:
+        Group ID as integer, or None if not configured
+    """
+    agent_id = context.bot_data.get('agent_id')
+    
+    # Main bot - not typically used
+    if not agent_id:
+        return None
+    
+    # Child agent - get from settings
+    links = get_links_for_child_agent(context)
+    notify_group_id = links.get('notify_group_id')
+    
+    if notify_group_id is None:
+        return None
+    
+    # Convert to int if it's a string (or accept @username)
+    try:
+        # If it starts with @, it's a username - return as-is (will be int conversion error caught below)
+        if isinstance(notify_group_id, str):
+            if notify_group_id.startswith('@'):
+                # Username format - return as string for Telegram to resolve
+                return notify_group_id
+            return int(notify_group_id)
+        return int(notify_group_id)
+    except (ValueError, TypeError):
+        logging.warning(f"Invalid notify_group_id for agent {agent_id}: {notify_group_id}")
         return None
 
 
